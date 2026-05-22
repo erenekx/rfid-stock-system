@@ -66,12 +66,13 @@ jobs:
             --clean
 
       # -------------------------------------------------------
-      # 7. Ad-hoc codesign uygula
+      # 7. Ad-hoc codesign uygula + karantina bayrağını kaldır
       # -------------------------------------------------------
-      - name: Sign app (ad-hoc)
+      - name: Sign app (ad-hoc) and remove quarantine
         run: |
           codesign --deep --force --sign - "dist/RFID Stock System.app"
-          echo "Codesign complete."
+          xattr -cr "dist/RFID Stock System.app"
+          echo "Codesign + quarantine removal complete."
 
       # -------------------------------------------------------
       # 8. .dmg oluştur

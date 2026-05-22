@@ -68,7 +68,7 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='RFID Stock System.app',
-    # icon='assets/icon.icns',   # İkon eklemek istersen bu satırı aktif et
+    icon='assets/icon.icns',
     bundle_identifier='com.erenekx.rfid-stock-system',
     version='1.0.0',
     info_plist={

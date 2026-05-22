@@ -1,7 +1,6 @@
 import sqlite3
 import datetime
-
-DB_NAME = "stock.db"
+from database import DB_NAME
 
 
 def scan_rfid(tag, user=None):

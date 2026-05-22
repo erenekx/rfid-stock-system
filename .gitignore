@@ -26,3 +26,11 @@ Thumbs.db
 dist/
 build/
 *.egg-info/
+
+# PyInstaller
+*.spec.bak
+__pycache__/
+
+# DMG temp files
+*.dmg
+tmp_*.dmg

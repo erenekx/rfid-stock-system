@@ -1,0 +1,127 @@
+name: Build & Release macOS App
+
+# v1.0.0 gibi bir tag push edildiğinde tetiklenir
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write  # GitHub Release oluşturabilmek için
+
+jobs:
+  build-macos:
+    name: Build macOS DMG
+    runs-on: macos-latest
+
+    steps:
+      # -------------------------------------------------------
+      # 1. Kodu çek
+      # -------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -------------------------------------------------------
+      # 2. Python kur
+      # -------------------------------------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # -------------------------------------------------------
+      # 3. Bağımlılıkları yükle
+      # -------------------------------------------------------
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      # -------------------------------------------------------
+      # 4. Versiyonu tag'den al (v1.0.0 → 1.0.0)
+      # -------------------------------------------------------
+      - name: Extract version
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Building version: ${VERSION}"
+
+      # -------------------------------------------------------
+      # 5. Önceki build'leri temizle
+      # -------------------------------------------------------
+      - name: Clean previous builds
+        run: rm -rf build/ dist/
+
+      # -------------------------------------------------------
+      # 6. PyInstaller ile .app oluştur
+      # -------------------------------------------------------
+      - name: Build .app with PyInstaller
+        run: |
+          pyinstaller rfid_stock_system.spec \
+            --noconfirm \
+            --clean
+
+      # -------------------------------------------------------
+      # 7. Ad-hoc codesign uygula
+      # -------------------------------------------------------
+      - name: Sign app (ad-hoc)
+        run: |
+          codesign --deep --force --sign - "dist/RFID Stock System.app"
+          echo "Codesign complete."
+
+      # -------------------------------------------------------
+      # 8. .dmg oluştur
+      # -------------------------------------------------------
+      - name: Create DMG
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          DMG_NAME="RFID-Stock-System-v${VERSION}.dmg"
+
+          hdiutil create \
+            -volname "RFID Stock System" \
+            -srcfolder "dist/RFID Stock System.app" \
+            -ov \
+            -format UDZO \
+            "dist/${DMG_NAME}"
+
+          echo "DMG created: dist/${DMG_NAME}"
+          echo "dmg_name=${DMG_NAME}" >> $GITHUB_ENV
+
+      # -------------------------------------------------------
+      # 9. GitHub Release oluştur ve DMG'yi yükle
+      # -------------------------------------------------------
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "RFID Stock System ${{ steps.version.outputs.tag }}"
+          body: |
+            ## RFID-Based Medicine Stock Management System ${{ steps.version.outputs.tag }}
+
+            ### 📦 Kurulum (macOS)
+
+            1. Aşağıdaki `.dmg` dosyasını indir
+            2. DMG'yi aç (çift tıkla)
+            3. **RFID Stock System** simgesini **Applications** klasörüne sürükle
+            4. İlk açılışta: **Sağ tık → Aç** (Gatekeeper uyarısını geçmek için)
+
+            > **Not:** Uygulama Apple tarafından imzalanmamıştır. "Açılamıyor" uyarısı çıkarsa:
+            > Sistem Tercihleri → Gizlilik ve Güvenlik → "Yine de Aç" butonuna tıkla.
+
+            ### 🔑 Varsayılan Giriş Bilgileri
+            | Kullanıcı | Şifre | Rol |
+            |-----------|-------|-----|
+            | admin | admin123 | Yönetici |
+            | staff | staff123 | Personel |
+
+            ### ✨ Bu Sürümdeki Değişiklikler
+            - İlk macOS release
+          draft: false
+          prerelease: false
+          files: dist/${{ env.dmg_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -162,6 +162,50 @@ def authenticate_user(username, password):
     return user
 
 
+def username_exists(username):
+    """Kullanıcı adı zaten kayıtlı mı kontrol eder."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+    result = cursor.fetchone()
+    conn.close()
+    return result is not None
+
+
+def add_user(username, password, role, full_name):
+    """Yeni kullanıcı ekler. Başarılıysa True, kullanıcı adı çakışırsa False döner."""
+    if username_exists(username):
+        return False
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    pw_hash = _hash_password(password)
+    cursor.execute(
+        "INSERT INTO users (username, password_hash, role, full_name) VALUES (?, ?, ?, ?)",
+        (username, pw_hash, role, full_name))
+    conn.commit()
+    conn.close()
+    return True
+
+
+def delete_user(user_id):
+    """Kullanıcıyı siler."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+
+def update_user_password(user_id, new_password):
+    """Kullanıcı şifresini günceller."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    pw_hash = _hash_password(new_password)
+    cursor.execute("UPDATE users SET password_hash = ? WHERE id = ?", (pw_hash, user_id))
+    conn.commit()
+    conn.close()
+
+
 def get_all_users():
     """Tüm kullanıcıları döndürür."""
     conn = sqlite3.connect(DB_NAME)

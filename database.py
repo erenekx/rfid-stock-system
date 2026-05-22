@@ -1,7 +1,11 @@
 import sqlite3
 import hashlib
+import os
 
-DB_NAME = "stock.db"
+# macOS .app için veritabanını Application Support klasöründe sakla
+_APP_DIR = os.path.join(os.path.expanduser("~"), "Library", "Application Support", "RFID Stock System")
+os.makedirs(_APP_DIR, exist_ok=True)
+DB_NAME = os.path.join(_APP_DIR, "stock.db")
 
 
 def _hash_password(password):

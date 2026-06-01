@@ -1,13 +1,13 @@
 import customtkinter as ctk
-from database import add_medicine
+from database import add_medicine, log_movement
 
 
 class MedicineForm(ctk.CTkFrame):
-    """Figure 21: Medicine Registration and Edit Form"""
 
-    def __init__(self, parent, on_back):
+    def __init__(self, parent, on_back, current_user=None):
         super().__init__(parent, fg_color="transparent")
         self.on_back = on_back
+        self.current_user = current_user
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
         self._build_header()
@@ -33,7 +33,6 @@ class MedicineForm(ctk.CTkFrame):
                             border_width=1, border_color="#2b2b4a")
         card.grid(row=1, column=0, sticky="nsew")
 
-        # Form title
         ctk.CTkLabel(card, text="Register New Medicine",
                      font=ctk.CTkFont(size=18, weight="bold"),
                      text_color="#e0e0ff").pack(pady=(25, 5))
@@ -42,13 +41,11 @@ class MedicineForm(ctk.CTkFrame):
 
         ctk.CTkFrame(card, height=1, fg_color="#2b2b4a").pack(fill="x", padx=30, pady=(0, 20))
 
-        # 2 sütunlu form layout
         form = ctk.CTkFrame(card, fg_color="transparent")
         form.pack(fill="both", expand=True, padx=40, pady=(0, 10))
         form.grid_columnconfigure(0, weight=1)
         form.grid_columnconfigure(1, weight=1)
 
-        # ROW 0: Medicine Name
         ctk.CTkLabel(form, text="Medicine Name *", font=ctk.CTkFont(size=13, weight="bold"),
                      text_color="#a0a0c0").grid(row=0, column=0, sticky="w", padx=10, pady=(0, 3))
         self.name_entry = ctk.CTkEntry(form, placeholder_text="e.g. Paracetamol",
@@ -57,7 +54,6 @@ class MedicineForm(ctk.CTkFrame):
                                        font=ctk.CTkFont(size=14))
         self.name_entry.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 15))
 
-        # ROW 0: Batch No
         ctk.CTkLabel(form, text="Batch Number *", font=ctk.CTkFont(size=13, weight="bold"),
                      text_color="#a0a0c0").grid(row=0, column=1, sticky="w", padx=10, pady=(0, 3))
         self.batch_entry = ctk.CTkEntry(form, placeholder_text="e.g. B-2025-001",
@@ -66,7 +62,6 @@ class MedicineForm(ctk.CTkFrame):
                                         font=ctk.CTkFont(size=14))
         self.batch_entry.grid(row=1, column=1, sticky="ew", padx=10, pady=(0, 15))
 
-        # ROW 2: Expiry Date
         ctk.CTkLabel(form, text="Expiry Date *", font=ctk.CTkFont(size=13, weight="bold"),
                      text_color="#a0a0c0").grid(row=2, column=0, sticky="w", padx=10, pady=(0, 3))
         self.expiry_entry = ctk.CTkEntry(form, placeholder_text="YYYY-MM  (e.g. 2027-06)",
@@ -75,7 +70,6 @@ class MedicineForm(ctk.CTkFrame):
                                          font=ctk.CTkFont(size=14))
         self.expiry_entry.grid(row=3, column=0, sticky="ew", padx=10, pady=(0, 15))
 
-        # ROW 2: Quantity
         ctk.CTkLabel(form, text="Initial Quantity *", font=ctk.CTkFont(size=13, weight="bold"),
                      text_color="#a0a0c0").grid(row=2, column=1, sticky="w", padx=10, pady=(0, 3))
         self.qty_entry = ctk.CTkEntry(form, placeholder_text="e.g. 100",
@@ -84,7 +78,6 @@ class MedicineForm(ctk.CTkFrame):
                                       font=ctk.CTkFont(size=14))
         self.qty_entry.grid(row=3, column=1, sticky="ew", padx=10, pady=(0, 15))
 
-        # ROW 4: RFID Tag Assignment (full width)
         ctk.CTkLabel(form, text="RFID Tag Assignment", font=ctk.CTkFont(size=13, weight="bold"),
                      text_color="#a0a0c0").grid(row=4, column=0, sticky="w", padx=10, pady=(5, 3))
 
@@ -104,20 +97,16 @@ class MedicineForm(ctk.CTkFrame):
                                       command=self._simulate_scan)
         self.scan_btn.pack(side="right", padx=(10, 0))
 
-        # RFID status
         self.rfid_status = ctk.CTkLabel(form, text="", font=ctk.CTkFont(size=11),
                                         text_color="#7a7a9e")
         self.rfid_status.grid(row=6, column=0, sticky="w", padx=10)
 
-        # Divider
         div = ctk.CTkFrame(card, height=1, fg_color="#2b2b4a")
         div.pack(fill="x", padx=40, pady=(10, 15))
 
-        # Feedback label
         self.feedback = ctk.CTkLabel(card, text="", font=ctk.CTkFont(size=12, weight="bold"))
         self.feedback.pack(pady=(0, 5))
 
-        # Buttons
         btn_frame = ctk.CTkFrame(card, fg_color="transparent")
         btn_frame.pack(pady=(0, 30))
 
@@ -134,7 +123,6 @@ class MedicineForm(ctk.CTkFrame):
         self.save_btn.pack(side="left", padx=8)
 
     def _simulate_scan(self):
-        """RFID okutma simülasyonu"""
         import random
         tag = f"RFID-{random.randint(1000, 9999)}"
         self.rfid_entry.delete(0, "end")
@@ -144,17 +132,14 @@ class MedicineForm(ctk.CTkFrame):
         self.after(2000, lambda: self.scan_btn.configure(text="📡 Scan Tag", fg_color="#8e44ad"))
 
     def _save(self):
-        """Formu kaydet"""
         name = self.name_entry.get().strip()
         batch = self.batch_entry.get().strip()
         expiry = self.expiry_entry.get().strip()
         qty = self.qty_entry.get().strip()
         rfid = self.rfid_entry.get().strip()
 
-        # Validation
         if not name or not batch or not expiry or not qty:
             self.feedback.configure(text="⚠ Please fill in all required fields (*)", text_color="#e74c3c")
-            # Highlight empty fields
             for entry, val in [(self.name_entry, name), (self.batch_entry, batch),
                                (self.expiry_entry, expiry), (self.qty_entry, qty)]:
                 if not val:
@@ -171,10 +156,13 @@ class MedicineForm(ctk.CTkFrame):
             return
 
         add_medicine(name, batch, expiry, qty_int, rfid)
+
+        log_movement(rfid_tag=rfid or "-", product_name=name,
+                     action="ADDED", user=self.current_user)
+
         self.save_btn.configure(text="✓ Saved!", fg_color="#2ecc71")
         self.feedback.configure(text=f"✓ {name} registered successfully!", text_color="#2ecc71")
 
-        # Formu temizle
         self.after(1500, self._clear_form)
 
     def _cancel(self):

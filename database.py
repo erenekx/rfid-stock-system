@@ -2,14 +2,12 @@ import sqlite3
 import hashlib
 import os
 
-# macOS .app için veritabanını Application Support klasöründe sakla
 _APP_DIR = os.path.join(os.path.expanduser("~"), "Library", "Application Support", "RFID Stock System")
 os.makedirs(_APP_DIR, exist_ok=True)
 DB_NAME = os.path.join(_APP_DIR, "stock.db")
 
 
 def _hash_password(password):
-    """Basit SHA-256 hash fonksiyonu"""
     return hashlib.sha256(password.encode()).hexdigest()
 
 
@@ -82,7 +80,6 @@ def seed_data():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    # --- Kullanıcılar ---
     admin_hash = _hash_password("admin123")
     staff_hash = _hash_password("staff123")
     cursor.execute(
@@ -92,7 +89,6 @@ def seed_data():
         "INSERT OR IGNORE INTO users (id, username, password_hash, role, full_name) VALUES (2, 'staff', ?, 'staff', 'Nurse Elif Demir')",
         (staff_hash,))
 
-    # --- İlaçlar (Zengin Veri Seti) ---
     medicines = [
         (1, 'Parol'),
         (2, 'Aspirin'),
@@ -106,7 +102,6 @@ def seed_data():
     for mid, name in medicines:
         cursor.execute("INSERT OR IGNORE INTO products (id, name) VALUES (?, ?)", (mid, name))
 
-    # --- Batch'ler (Her ilaca bir batch) ---
     batches = [
         (1, 1, 'B101', '2027-05', 150),
         (2, 2, 'A55', '2026-11', 85),
@@ -121,7 +116,6 @@ def seed_data():
         cursor.execute("INSERT OR IGNORE INTO batches (id, product_id, batch_code, expire_date, quantity) VALUES (?, ?, ?, ?, ?)",
                        (bid, pid, code, exp, qty))
 
-    # --- RFID Etiketleri ---
     rfid_items = [
         ('RFID-1001', 1, 'IN_STOCK'),
         ('RFID-1002', 1, 'IN_STOCK'),
@@ -137,7 +131,6 @@ def seed_data():
         cursor.execute("INSERT OR IGNORE INTO rfid_items (rfid_tag, batch_id, status) VALUES (?, ?, ?)",
                        (tag, bid, status))
 
-    # --- Sistem Ayarları ---
     cursor.execute("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('low_stock_threshold', '20')")
     cursor.execute("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('expiry_warning_days', '90')")
 
@@ -145,12 +138,8 @@ def seed_data():
     conn.close()
 
 
-# ========================================
-# Yardımcı Fonksiyonlar (Helper Functions)
-# ========================================
-
 def authenticate_user(username, password):
-    """Kullanıcı doğrulama. Başarılıysa (id, username, role, full_name) döner."""
+    """Returns (id, username, role, full_name) on success, None otherwise."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     pw_hash = _hash_password(password)
@@ -163,7 +152,6 @@ def authenticate_user(username, password):
 
 
 def username_exists(username):
-    """Kullanıcı adı zaten kayıtlı mı kontrol eder."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
@@ -173,7 +161,7 @@ def username_exists(username):
 
 
 def add_user(username, password, role, full_name):
-    """Yeni kullanıcı ekler. Başarılıysa True, kullanıcı adı çakışırsa False döner."""
+    """Returns True on success, False if username is already taken."""
     if username_exists(username):
         return False
     conn = sqlite3.connect(DB_NAME)
@@ -188,7 +176,6 @@ def add_user(username, password, role, full_name):
 
 
 def delete_user(user_id):
-    """Kullanıcıyı siler."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
@@ -197,7 +184,6 @@ def delete_user(user_id):
 
 
 def update_user_password(user_id, new_password):
-    """Kullanıcı şifresini günceller."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     pw_hash = _hash_password(new_password)
@@ -207,7 +193,6 @@ def update_user_password(user_id, new_password):
 
 
 def get_all_users():
-    """Tüm kullanıcıları döndürür."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("SELECT id, username, role, full_name FROM users")
@@ -216,8 +201,21 @@ def get_all_users():
     return users
 
 
+def log_movement(rfid_tag, product_name, action, user=None):
+    import datetime
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    user_id = user[0] if user else None
+    user_name = user[3] if user else "System"
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cursor.execute(
+        "INSERT INTO movements (rfid_tag, product_name, action, user_id, user_name, date) VALUES (?, ?, ?, ?, ?, ?)",
+        (rfid_tag, product_name, action, user_id, user_name, now))
+    conn.commit()
+    conn.close()
+
+
 def get_all_inventory():
-    """Envanter tablosu için tüm verileri döndürür."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("""
@@ -242,7 +240,6 @@ def get_all_inventory():
 
 
 def get_system_settings():
-    """Sistem ayarlarını dictionary olarak döndürür."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("SELECT key, value FROM system_settings")
@@ -252,7 +249,6 @@ def get_system_settings():
 
 
 def update_system_setting(key, value):
-    """Sistem ayarını günceller."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)", (key, str(value)))
@@ -261,7 +257,6 @@ def update_system_setting(key, value):
 
 
 def add_medicine(name, batch_code, expire_date, quantity, rfid_tag):
-    """Yeni ilaç ekler."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("INSERT INTO products (name) VALUES (?)", (name,))
@@ -278,7 +273,6 @@ def add_medicine(name, batch_code, expire_date, quantity, rfid_tag):
 
 
 def get_inventory_stats():
-    """Dashboard için istatistik verileri döndürür."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
@@ -304,15 +298,13 @@ def get_inventory_stats():
 
 
 def delete_medicine(product_id):
-    """Ürünü ve ilişkili tüm verileri siler (batches, rfid_items, movements)."""
+    """Deletes a product and all related batches, rfid_items and movements."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    # Önce batch_id'leri bul
     cursor.execute("SELECT id FROM batches WHERE product_id = ?", (product_id,))
     batch_ids = [row[0] for row in cursor.fetchall()]
 
-    # RFID tag'lerini bul ve movements'tan sil
     for bid in batch_ids:
         cursor.execute("SELECT rfid_tag FROM rfid_items WHERE batch_id = ?", (bid,))
         tags = [row[0] for row in cursor.fetchall()]
@@ -320,10 +312,7 @@ def delete_medicine(product_id):
             cursor.execute("DELETE FROM movements WHERE rfid_tag = ?", (tag,))
         cursor.execute("DELETE FROM rfid_items WHERE batch_id = ?", (bid,))
 
-    # Batch'leri sil
     cursor.execute("DELETE FROM batches WHERE product_id = ?", (product_id,))
-
-    # Ürünü sil
     cursor.execute("DELETE FROM products WHERE id = ?", (product_id,))
 
     conn.commit()
@@ -331,7 +320,6 @@ def delete_medicine(product_id):
 
 
 def get_medicine_details(product_id):
-    """Düzenleme formu için ürün detaylarını döndürür."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("""
@@ -346,7 +334,6 @@ def get_medicine_details(product_id):
 
 
 def update_medicine(product_id, name, batch_code, expire_date, quantity):
-    """Mevcut ilacı günceller."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("UPDATE products SET name = ? WHERE id = ?", (name, product_id))
@@ -359,7 +346,6 @@ def update_medicine(product_id, name, batch_code, expire_date, quantity):
 
 
 def get_all_movements():
-    """Admin paneli için tüm hareket kayıtlarını döndürür."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("""

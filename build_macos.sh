@@ -14,17 +14,20 @@ DMG_NAME="RFID-Stock-System-v${VERSION}"
 echo "=================================================="
 echo "  RFID Stock System — macOS Build"
 echo "  Versiyon: v${VERSION}"
+echo "  Python: $(python3 --version 2>&1)"
 echo "=================================================="
 
 # -------------------------------------------------------
-# 1. Sanal ortamı aktive et
+# 1. Sanal ortamı aktive et (.venv öncelikli)
 # -------------------------------------------------------
 echo ""
 echo "▶ Sanal ortam kontrol ediliyor..."
 if [ -d ".venv" ]; then
     source .venv/bin/activate
+    echo "  → .venv aktive edildi ($(python3 --version))"
 elif [ -d "venv" ]; then
     source venv/bin/activate
+    echo "  → venv aktive edildi ($(python3 --version))"
 else
     echo "  → Sanal ortam bulunamadı, sistem Python kullanılıyor."
 fi
@@ -34,8 +37,9 @@ fi
 # -------------------------------------------------------
 echo ""
 echo "▶ Bağımlılıklar yükleniyor..."
-pip install -r requirements.txt --quiet
-pip install pyinstaller --quiet
+pip3 install -r requirements.txt --quiet
+pip3 install pyinstaller --quiet
+echo "  → Tüm bağımlılıklar hazır."
 
 # -------------------------------------------------------
 # 3. Önceki build'leri temizle
@@ -43,6 +47,7 @@ pip install pyinstaller --quiet
 echo ""
 echo "▶ Önceki build klasörleri temizleniyor..."
 rm -rf build/ dist/
+echo "  → Temizlendi."
 
 # -------------------------------------------------------
 # 4. PyInstaller ile .app oluştur
@@ -73,7 +78,16 @@ codesign --deep --force --sign - "$APP_PATH" 2>/dev/null && \
     echo "  ⚠️  Codesign atlandı (Xcode CLI tools olmayabilir)."
 
 # -------------------------------------------------------
-# 7. .dmg oluştur
+# 7. Gatekeeper karantinasını kaldır (yerel test için)
+# -------------------------------------------------------
+echo ""
+echo "▶ Karantina özelliği kaldırılıyor (yerel test için)..."
+xattr -cr "$APP_PATH" 2>/dev/null && \
+    echo "  ✅ Karantina kaldırıldı." || \
+    echo "  ⚠️  xattr komutu başarısız oldu."
+
+# -------------------------------------------------------
+# 8. .dmg oluştur
 # -------------------------------------------------------
 echo ""
 echo "▶ DMG oluşturuluyor..."
@@ -81,10 +95,10 @@ echo "▶ DMG oluşturuluyor..."
 DMG_PATH="dist/${DMG_NAME}.dmg"
 TMP_DMG="dist/tmp_${DMG_NAME}.dmg"
 
-# hdiutil ile DMG oluştur
+# Geçici DMG oluştur
 hdiutil create \
     -volname "${APP_NAME}" \
-    -srcfolder "dist/${APP_NAME}.app" \
+    -srcfolder "${APP_PATH}" \
     -ov \
     -format UDZO \
     "$TMP_DMG"
@@ -95,16 +109,20 @@ mv "$TMP_DMG" "$DMG_PATH"
 echo "  ✅ DMG oluşturuldu: ${DMG_PATH}"
 
 # -------------------------------------------------------
-# 8. Özet
+# 9. Özet
 # -------------------------------------------------------
 echo ""
 echo "=================================================="
 echo "  ✅ Build tamamlandı!"
 echo ""
-echo "  Dosya: dist/${DMG_NAME}.dmg"
+echo "  .app  : ${APP_PATH}"
+echo "  .dmg  : dist/${DMG_NAME}.dmg"
 FILESIZE=$(du -sh "dist/${DMG_NAME}.dmg" | cut -f1)
-echo "  Boyut: ${FILESIZE}"
+echo "  Boyut : ${FILESIZE}"
 echo ""
 echo "  Test etmek için:"
+echo "    open \"${APP_PATH}\""
+echo ""
+echo "  DMG'yi açmak için:"
 echo "    open dist/${DMG_NAME}.dmg"
 echo "=================================================="

@@ -1,4 +1,4 @@
-name: Build & Release macOS App
+name: Build & Release (macOS + Windows)
 
 # v1.0.0 gibi bir tag push edildiğinde tetiklenir
 on:
@@ -10,6 +10,9 @@ permissions:
   contents: write  # GitHub Release oluşturabilmek için
 
 jobs:
+  # ===========================================================
+  # JOB 1 — macOS DMG
+  # ===========================================================
   build-macos:
     name: Build macOS DMG
     runs-on: macos-latest
@@ -36,7 +39,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller pillow
 
       # -------------------------------------------------------
       # 4. Versiyonu tag'den al (v1.0.0 → 1.0.0)
@@ -80,7 +83,7 @@ jobs:
       - name: Create DMG
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          DMG_NAME="RFID-Stock-System-v${VERSION}.dmg"
+          DMG_NAME="RFID-Stock-System-v${VERSION}-macOS.dmg"
 
           hdiutil create \
             -volname "RFID Stock System" \
@@ -93,7 +96,188 @@ jobs:
           echo "dmg_name=${DMG_NAME}" >> $GITHUB_ENV
 
       # -------------------------------------------------------
-      # 9. GitHub Release oluştur ve DMG'yi yükle
+      # 9. Artifact olarak yükle (release job için)
+      # -------------------------------------------------------
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: dist/${{ env.dmg_name }}
+          retention-days: 1
+
+  # ===========================================================
+  # JOB 2 — Windows EXE
+  # ===========================================================
+  build-windows:
+    name: Build Windows EXE
+    runs-on: windows-latest
+
+    steps:
+      # -------------------------------------------------------
+      # 1. Kodu çek
+      # -------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -------------------------------------------------------
+      # 2. Python kur
+      # -------------------------------------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # -------------------------------------------------------
+      # 3. Bağımlılıkları yükle
+      # -------------------------------------------------------
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller pillow
+
+      # -------------------------------------------------------
+      # 4. Versiyonu tag'den al
+      # -------------------------------------------------------
+      - name: Extract version
+        id: version
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Building version: ${VERSION}"
+
+      # -------------------------------------------------------
+      # 5. PNG'den .ico üret
+      # -------------------------------------------------------
+      - name: Generate .ico from PNG
+        shell: python
+        run: |
+          from PIL import Image
+          img = Image.open("assets/icon.png").convert("RGBA")
+          sizes = [(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)]
+          img.save("assets/icon.ico", format="ICO", sizes=sizes)
+          print("icon.ico generated successfully")
+
+      # -------------------------------------------------------
+      # 6. Önceki build'leri temizle
+      # -------------------------------------------------------
+      - name: Clean previous builds
+        run: |
+          if (Test-Path build) { Remove-Item -Recurse -Force build }
+          if (Test-Path dist)  { Remove-Item -Recurse -Force dist }
+
+      # -------------------------------------------------------
+      # 7. PyInstaller ile Windows .exe oluştur
+      # -------------------------------------------------------
+      - name: Build Windows EXE with PyInstaller
+        shell: bash
+        run: |
+          pyinstaller main.py \
+            --noconfirm \
+            --clean \
+            --name "RFID Stock System" \
+            --windowed \
+            --icon "assets/icon.ico" \
+            --add-data "screens;screens" \
+            --add-data "assets;assets" \
+            --hidden-import customtkinter \
+            --hidden-import darkdetect \
+            --hidden-import packaging \
+            --hidden-import packaging.version \
+            --hidden-import packaging.specifiers \
+            --hidden-import packaging.requirements \
+            --hidden-import PIL \
+            --hidden-import PIL._tkinter_finder \
+            --hidden-import PIL.Image \
+            --hidden-import PIL.ImageTk \
+            --hidden-import tkinter \
+            --hidden-import tkinter.ttk \
+            --hidden-import tkinter.messagebox \
+            --hidden-import tkinter.filedialog \
+            --hidden-import _tkinter \
+            --hidden-import sqlite3 \
+            --hidden-import _sqlite3 \
+            --hidden-import hashlib \
+            --hidden-import datetime \
+            --hidden-import screens.login_screen \
+            --hidden-import screens.admin_dashboard \
+            --hidden-import screens.staff_inventory \
+            --hidden-import screens.rfid_scanner \
+            --hidden-import screens.medicine_form \
+            --collect-data customtkinter \
+            --collect-data darkdetect \
+            --exclude-module matplotlib \
+            --exclude-module numpy \
+            --exclude-module pandas \
+            --exclude-module scipy
+
+      # -------------------------------------------------------
+      # 8. ZIP arşivi oluştur
+      # -------------------------------------------------------
+      - name: Create ZIP archive
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ZIP_NAME="RFID-Stock-System-v${VERSION}-Windows.zip"
+          cd dist
+          7z a "../${ZIP_NAME}" "RFID Stock System/"
+          cd ..
+          echo "zip_name=${ZIP_NAME}" >> $GITHUB_ENV
+          echo "ZIP created: ${ZIP_NAME}"
+
+      # -------------------------------------------------------
+      # 9. Artifact olarak yükle (release job için)
+      # -------------------------------------------------------
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-zip
+          path: ${{ env.zip_name }}
+          retention-days: 1
+
+  # ===========================================================
+  # JOB 3 — GitHub Release (her iki build tamamlanınca)
+  # ===========================================================
+  release:
+    name: Create GitHub Release
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+
+    steps:
+      # -------------------------------------------------------
+      # 1. macOS artifact'ı indir
+      # -------------------------------------------------------
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-dmg
+          path: ./artifacts
+
+      # -------------------------------------------------------
+      # 2. Windows artifact'ı indir
+      # -------------------------------------------------------
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-zip
+          path: ./artifacts
+
+      # -------------------------------------------------------
+      # 3. Versiyonu tag'den al
+      # -------------------------------------------------------
+      - name: Extract version
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      # -------------------------------------------------------
+      # 4. GitHub Release oluştur ve her iki dosyayı yükle
       # -------------------------------------------------------
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -103,9 +287,11 @@ jobs:
           body: |
             ## RFID-Based Medicine Stock Management System ${{ steps.version.outputs.tag }}
 
-            ### 📦 Kurulum (macOS)
+            ---
 
-            1. Aşağıdaki `.dmg` dosyasını indir
+            ### 🍎 macOS Kurulum
+
+            1. `RFID-Stock-System-v${{ steps.version.outputs.version }}-macOS.dmg` dosyasını indir
             2. DMG'yi aç (çift tıkla)
             3. **RFID Stock System** simgesini **Applications** klasörüne sürükle
             4. İlk açılışta: **Sağ tık → Aç** (Gatekeeper uyarısını geçmek için)
@@ -113,16 +299,31 @@ jobs:
             > **Not:** Uygulama Apple tarafından imzalanmamıştır. "Açılamıyor" uyarısı çıkarsa:
             > Sistem Tercihleri → Gizlilik ve Güvenlik → "Yine de Aç" butonuna tıkla.
 
+            ---
+
+            ### 🪟 Windows Kurulum
+
+            1. `RFID-Stock-System-v${{ steps.version.outputs.version }}-Windows.zip` dosyasını indir
+            2. ZIP'i bir klasöre çıkar
+            3. `RFID Stock System\RFID Stock System.exe` dosyasını çalıştır
+            4. Windows Defender uyarısı çıkarsa: **Daha fazla bilgi → Yine de çalıştır**
+
+            > **Not:** Uygulama Microsoft tarafından imzalanmamıştır. SmartScreen uyarısı normaldir.
+
+            ---
+
             ### 🔑 Varsayılan Giriş Bilgileri
-            | Kullanıcı | Şifre | Rol |
-            |-----------|-------|-----|
-            | admin | admin123 | Yönetici |
-            | staff | staff123 | Personel |
+            | Kullanıcı | Şifre    | Rol        |
+            |-----------|----------|------------|
+            | admin     | admin123 | Yönetici   |
+            | staff     | staff123 | Personel   |
 
             ### ✨ Bu Sürümdeki Değişiklikler
-            - İlk macOS release
+            - Kullanıcı yönetimi eklendi
+            - Veritabanı yolu güncellendi (Application Support)
+            - macOS & Windows çift platform desteği
           draft: false
           prerelease: false
-          files: dist/${{ env.dmg_name }}
+          files: ./artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

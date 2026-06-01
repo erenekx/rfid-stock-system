@@ -3,7 +3,6 @@ from database import get_all_inventory, delete_medicine, get_medicine_details, u
 
 
 class StaffInventory(ctk.CTkFrame):
-    """Figure 19: Staff Dashboard and Inventory Table"""
 
     def __init__(self, parent, on_logout, on_switch_scanner, on_add_medicine, current_user=None):
         super().__init__(parent, fg_color="transparent")
@@ -60,7 +59,6 @@ class StaffInventory(ctk.CTkFrame):
             command=self.on_add_medicine)
         self.add_btn.pack(side="right")
 
-        # Search bar
         self.search_entry = ctk.CTkEntry(
             tab_frame, placeholder_text="🔍 Search medicines...",
             width=220, height=36, corner_radius=8,
@@ -73,7 +71,6 @@ class StaffInventory(ctk.CTkFrame):
                             border_width=1, border_color="#2b2b4a")
         self.table_card.grid(row=2, column=0, sticky="nsew")
 
-        # Table header
         th = ctk.CTkFrame(self.table_card, fg_color="#16162a", corner_radius=8)
         th.pack(fill="x", padx=15, pady=(15, 5))
 
@@ -84,11 +81,9 @@ class StaffInventory(ctk.CTkFrame):
                          font=ctk.CTkFont(size=12, weight="bold"),
                          text_color="#7a7a9e").pack(side="left", padx=6, pady=10)
 
-        # Table body
         self.table_body = ctk.CTkScrollableFrame(self.table_card, fg_color="transparent")
         self.table_body.pack(fill="both", expand=True, padx=15, pady=(0, 15))
 
-        # Feedback label
         self.feedback_label = ctk.CTkLabel(self.table_card, text="", font=ctk.CTkFont(size=12))
         self.feedback_label.pack(pady=(0, 10))
 
@@ -123,7 +118,6 @@ class StaffInventory(ctk.CTkFrame):
                          font=ctk.CTkFont(size=12),
                          text_color="#a0a0c0").pack(side="left", padx=6)
 
-            # Status badge
             if status == "Expired":
                 s_color, s_text = "#e74c3c", "🔴 Expired"
             elif status == "Low Stock":
@@ -135,29 +129,22 @@ class StaffInventory(ctk.CTkFrame):
                          font=ctk.CTkFont(size=11, weight="bold"),
                          text_color=s_color).pack(side="left", padx=6)
 
-            # Action buttons frame
             actions = ctk.CTkFrame(row, fg_color="transparent")
             actions.pack(side="left", padx=6)
 
-            # ✏️ Edit button
             ctk.CTkButton(actions, text="✏️", width=36, height=28, corner_radius=6,
                           fg_color="#1a3a5c", hover_color="#2b719e",
                           font=ctk.CTkFont(size=13),
                           command=lambda pid=product_id: self._open_edit(pid)
                           ).pack(side="left", padx=(0, 4))
 
-            # 🗑️ Delete button
             ctk.CTkButton(actions, text="🗑️", width=36, height=28, corner_radius=6,
                           fg_color="#3a1a1a", hover_color="#e74c3c",
                           font=ctk.CTkFont(size=13),
                           command=lambda pid=product_id, n=name: self._confirm_delete(pid, n)
                           ).pack(side="left")
 
-    # ==========================================
-    # DÜZENLEME (Edit) İşlemleri
-    # ==========================================
     def _open_edit(self, product_id):
-        """Düzenleme penceresi aç"""
         details = get_medicine_details(product_id)
         if not details:
             return
@@ -170,7 +157,6 @@ class StaffInventory(ctk.CTkFrame):
         dialog.resizable(False, False)
         dialog.grab_set()
 
-        # Header
         ctk.CTkLabel(dialog, text="✏️  Edit Medicine",
                      font=ctk.CTkFont(size=18, weight="bold"),
                      text_color="#e0e0ff").pack(pady=(20, 5))
@@ -179,7 +165,6 @@ class StaffInventory(ctk.CTkFrame):
         form = ctk.CTkFrame(dialog, fg_color="transparent")
         form.pack(fill="x", padx=30)
 
-        # Medicine Name
         ctk.CTkLabel(form, text="Medicine Name", font=ctk.CTkFont(size=12, weight="bold"),
                      text_color="#a0a0c0").pack(anchor="w", pady=(0, 3))
         name_entry = ctk.CTkEntry(form, height=38, corner_radius=8,
@@ -188,7 +173,6 @@ class StaffInventory(ctk.CTkFrame):
         name_entry.insert(0, name)
         name_entry.pack(fill="x", pady=(0, 12))
 
-        # Batch No
         ctk.CTkLabel(form, text="Batch Number", font=ctk.CTkFont(size=12, weight="bold"),
                      text_color="#a0a0c0").pack(anchor="w", pady=(0, 3))
         batch_entry = ctk.CTkEntry(form, height=38, corner_radius=8,
@@ -197,7 +181,6 @@ class StaffInventory(ctk.CTkFrame):
         batch_entry.insert(0, batch_code)
         batch_entry.pack(fill="x", pady=(0, 12))
 
-        # 2-column: Expiry + Quantity
         row2 = ctk.CTkFrame(form, fg_color="transparent")
         row2.pack(fill="x", pady=(0, 12))
         row2.grid_columnconfigure(0, weight=1)
@@ -219,11 +202,9 @@ class StaffInventory(ctk.CTkFrame):
         qty_entry.insert(0, str(qty))
         qty_entry.grid(row=1, column=1, sticky="ew", padx=(5, 0))
 
-        # Error label
         err_label = ctk.CTkLabel(dialog, text="", font=ctk.CTkFont(size=11), text_color="#e74c3c")
         err_label.pack(pady=(5, 0))
 
-        # Buttons
         btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
         btn_frame.pack(pady=(10, 20))
 
@@ -256,11 +237,7 @@ class StaffInventory(ctk.CTkFrame):
                       font=ctk.CTkFont(size=13, weight="bold"),
                       command=save_edit).pack(side="left", padx=8)
 
-    # ==========================================
-    # SİLME (Delete) İşlemleri
-    # ==========================================
     def _confirm_delete(self, product_id, name):
-        """Silme onayı penceresi"""
         dialog = ctk.CTkToplevel(self)
         dialog.title("Confirm Delete")
         dialog.geometry("380x200")
@@ -300,5 +277,4 @@ class StaffInventory(ctk.CTkFrame):
         self._populate_rows(text)
 
     def refresh(self):
-        """Tabloyu yeniler"""
         self._populate_rows()

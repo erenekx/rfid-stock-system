@@ -1,16 +1,17 @@
 import customtkinter as ctk
 import datetime
-from rfid_simulator import scan_rfid
+from rfid_simulator import scan_rfid, return_rfid
 
 
 class RFIDScannerScreen(ctk.CTkFrame):
-    """Figure 20: Staff Dashboard / RFID Scan Screen (mevcut kodun frame versiyonu)"""
 
     def __init__(self, parent, on_logout, on_switch_inventory, current_user=None):
         super().__init__(parent, fg_color="transparent")
         self.on_logout = on_logout
         self.on_switch_inventory = on_switch_inventory
         self.current_user = current_user
+
+        self.scan_mode = "DISPENSE"
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(2, weight=1)
@@ -58,38 +59,56 @@ class RFIDScannerScreen(ctk.CTkFrame):
         content.grid_columnconfigure(1, weight=4)
         content.grid_rowconfigure(0, weight=1)
 
-        # --- SOL PANEL ---
         left = ctk.CTkFrame(content, fg_color="transparent")
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
 
-        # Reader card
         reader = ctk.CTkFrame(left, corner_radius=10, fg_color="#1a1a2e",
                                border_width=1, border_color="#2b2b4a")
-        reader.pack(fill="x", pady=(0, 15))
+        reader.pack(fill="x", pady=(0, 12))
 
         ctk.CTkLabel(reader, text="Hardware Interface",
                      font=ctk.CTkFont(size=14, weight="bold"),
-                     text_color="#e0e0ff").pack(pady=(15, 5))
+                     text_color="#e0e0ff").pack(pady=(15, 8))
+
+        mode_frame = ctk.CTkFrame(reader, fg_color="transparent")
+        mode_frame.pack(pady=(0, 10))
+
+        ctk.CTkLabel(mode_frame, text="Mode:",
+                     font=ctk.CTkFont(size=12, weight="bold"),
+                     text_color="#7a7a9e").pack(side="left", padx=(0, 8))
+
+        self.dispense_btn = ctk.CTkButton(
+            mode_frame, text="📤 Dispense", width=120, height=32, corner_radius=8,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color="#e67e22", hover_color="#d35400",
+            command=self._set_dispense_mode)
+        self.dispense_btn.pack(side="left", padx=4)
+
+        self.return_btn = ctk.CTkButton(
+            mode_frame, text="📥 Return", width=120, height=32, corner_radius=8,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color="#2b2b4a", hover_color="#3b3b5a",
+            command=self._set_return_mode)
+        self.return_btn.pack(side="left", padx=4)
 
         self.entry_rfid = ctk.CTkEntry(reader, placeholder_text="Waiting for EPC tag...",
                                        width=280, height=40,
                                        font=ctk.CTkFont(size=15), justify="center",
                                        border_color="#2b2b4a", fg_color="#16162a")
-        self.entry_rfid.pack(pady=10)
+        self.entry_rfid.pack(pady=(0, 10))
         self.entry_rfid.bind("<Return>", self.auto_scan)
 
-        ctk.CTkButton(reader, text="Simulate Tag Reading", height=40,
-                      font=ctk.CTkFont(weight="bold"),
-                      fg_color="#2b719e", hover_color="#1f538d",
-                      command=self.zone_scan).pack(pady=(0, 15))
+        self.scan_btn = ctk.CTkButton(reader, text="📤 Simulate Dispense", height=40,
+                                      font=ctk.CTkFont(weight="bold"),
+                                      fg_color="#e67e22", hover_color="#d35400",
+                                      command=self.zone_scan)
+        self.scan_btn.pack(pady=(0, 15))
 
-        # Status
-        self.status_label = ctk.CTkLabel(left, text="🟢 Scanner Ready",
+        self.status_label = ctk.CTkLabel(left, text="🟢 Scanner Ready — DISPENSE Mode",
                                          font=ctk.CTkFont(size=14, weight="bold"),
                                          text_color="#2ecc71")
         self.status_label.pack(pady=5)
 
-        # Result card
         self.result_card = ctk.CTkFrame(left, corner_radius=10, fg_color="#1a1a2e",
                                         border_width=1, border_color="#2b2b4a")
         self.result_card.pack(fill="both", expand=True, pady=10)
@@ -103,7 +122,6 @@ class RFIDScannerScreen(ctk.CTkFrame):
                                          justify="left")
         self.result_label.pack(pady=20, padx=20, expand=True)
 
-        # --- SAĞ PANEL ---
         right = ctk.CTkFrame(content, corner_radius=10, fg_color="#1a1a2e",
                              border_width=1, border_color="#2b2b4a")
         right.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
@@ -122,6 +140,30 @@ class RFIDScannerScreen(ctk.CTkFrame):
 
         self.entry_rfid.focus()
 
+    def _set_dispense_mode(self):
+        self.scan_mode = "DISPENSE"
+        self.dispense_btn.configure(fg_color="#e67e22", hover_color="#d35400")
+        self.return_btn.configure(fg_color="#2b2b4a", hover_color="#3b3b5a")
+        self.scan_btn.configure(text="📤 Simulate Dispense",
+                                fg_color="#e67e22", hover_color="#d35400")
+        self.status_label.configure(text="🟢 Scanner Ready — DISPENSE Mode",
+                                    text_color="#2ecc71")
+        self.result_card.configure(border_color="#2b2b4a", border_width=1)
+        self.result_label.configure(text="Waiting for physical scan...", text_color="#7a7a9e",
+                                    font=ctk.CTkFont(size=15))
+
+    def _set_return_mode(self):
+        self.scan_mode = "RETURN"
+        self.return_btn.configure(fg_color="#2ecc71", hover_color="#27ae60")
+        self.dispense_btn.configure(fg_color="#2b2b4a", hover_color="#3b3b5a")
+        self.scan_btn.configure(text="📥 Simulate Return",
+                                fg_color="#2ecc71", hover_color="#27ae60")
+        self.status_label.configure(text="🔵 Scanner Ready — RETURN Mode",
+                                    text_color="#3498db")
+        self.result_card.configure(border_color="#2b2b4a", border_width=1)
+        self.result_label.configure(text="Waiting for physical scan...", text_color="#7a7a9e",
+                                    font=ctk.CTkFont(size=15))
+
     def zone_scan(self):
         tag = self.entry_rfid.get()
         if not tag:
@@ -135,37 +177,48 @@ class RFIDScannerScreen(ctk.CTkFrame):
         if not tag:
             return
         self.status_label.configure(text="🟡 Processing...", text_color="#f1c40f")
-        result = scan_rfid(tag, user=self.current_user)
+
+        if self.scan_mode == "RETURN":
+            result = return_rfid(tag, user=self.current_user)
+        else:
+            result = scan_rfid(tag, user=self.current_user)
+
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         self.history_box.configure(state="normal")
 
         if result:
             name, batch, expire, remaining = result
-            text = f"📦 Product:\t{name}\n\n🏷️ Batch No:\t{batch}\n\n⏳ Expiry:\t{expire}\n\n📊 Remaining:\t{remaining} units"
 
-            # Stok durumuna göre renk
-            if remaining == 0:
-                qty_warning = "\n\n🚫 OUT OF STOCK!"
-                text += qty_warning
-                border_color = "#e74c3c"
-                status_text = "🔴 Stock Depleted!"
-                status_color = "#e74c3c"
-            elif remaining <= 20:
-                qty_warning = "\n\n⚠️ LOW STOCK WARNING"
-                text += qty_warning
-                border_color = "#e67e22"
-                status_text = f"🟠 Low Stock Alert ({remaining} left)"
-                status_color = "#e67e22"
-            else:
+            if self.scan_mode == "RETURN":
+                text = f"📦 Product:\t{name}\n\n🏷️ Batch No:\t{batch}\n\n⏳ Expiry:\t{expire}\n\n📊 New Stock:\t{remaining} units\n\n✅ RETURNED TO STOCK"
                 border_color = "#2ecc71"
-                status_text = "🟢 Stock Updated Successfully"
+                status_text = f"🟢 Item Returned ({remaining} in stock)"
                 status_color = "#2ecc71"
+                log_line = f"[{timestamp}] RETURNED: {tag} -> {name} (Stock: {remaining})\n"
+            else:
+                text = f"📦 Product:\t{name}\n\n🏷️ Batch No:\t{batch}\n\n⏳ Expiry:\t{expire}\n\n📊 Remaining:\t{remaining} units"
+
+                if remaining == 0:
+                    text += "\n\n🚫 OUT OF STOCK!"
+                    border_color = "#e74c3c"
+                    status_text = "🔴 Stock Depleted!"
+                    status_color = "#e74c3c"
+                elif remaining <= 20:
+                    text += "\n\n⚠️ LOW STOCK WARNING"
+                    border_color = "#e67e22"
+                    status_text = f"🟠 Low Stock Alert ({remaining} left)"
+                    status_color = "#e67e22"
+                else:
+                    border_color = "#2ecc71"
+                    status_text = "🟢 Stock Updated Successfully"
+                    status_color = "#2ecc71"
+
+                log_line = f"[{timestamp}] DISPENSED: {tag} -> {name} (Stock: {remaining})\n"
 
             self.result_label.configure(text=text, text_color="white",
-                                        font=ctk.CTkFont(size=16, weight="bold"))
+                                        font=ctk.CTkFont(size=15, weight="bold"))
             self.result_card.configure(border_color=border_color, border_width=2)
             self.status_label.configure(text=status_text, text_color=status_color)
-            log_line = f"[{timestamp}] DISPENSED: {tag} -> {name} (Stock: {remaining})\n"
         else:
             text = "⚠️ ERROR:\nUnregistered or Invalid RFID Tag"
             self.result_label.configure(text=text, text_color="#e74c3c",
@@ -181,7 +234,12 @@ class RFIDScannerScreen(ctk.CTkFrame):
         self.after(2000, self.reset_status)
 
     def reset_status(self):
-        self.status_label.configure(text="🟢 Scanner Ready", text_color="#2ecc71")
+        if self.scan_mode == "RETURN":
+            self.status_label.configure(text="🔵 Scanner Ready — RETURN Mode",
+                                        text_color="#3498db")
+        else:
+            self.status_label.configure(text="🟢 Scanner Ready — DISPENSE Mode",
+                                        text_color="#2ecc71")
         self.result_card.configure(border_color="#2b2b4a", border_width=1)
         self.result_label.configure(text="Waiting for physical scan...", text_color="#7a7a9e",
                                     font=ctk.CTkFont(size=15))

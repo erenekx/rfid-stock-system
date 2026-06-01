@@ -5,7 +5,6 @@ from database import (get_all_users, get_system_settings, update_system_setting,
 
 
 class AdminDashboard(ctk.CTkFrame):
-    """Figure 18: Administrator Dashboard Overview"""
 
     def __init__(self, parent, on_logout, current_user=None):
         super().__init__(parent, fg_color="transparent")
@@ -83,14 +82,12 @@ class AdminDashboard(ctk.CTkFrame):
                       fg_color="#2b719e", hover_color="#1f538d",
                       command=self._open_add_user_dialog).pack(side="right")
 
-        # Table header
         th = ctk.CTkFrame(self.users_card, fg_color="#16162a", corner_radius=6)
         th.pack(fill="x", padx=15, pady=(0, 5))
         for text, w in [("ID", 40), ("Username", 110), ("Full Name", 150), ("Role", 80), ("Actions", 130)]:
             ctk.CTkLabel(th, text=text, width=w, font=ctk.CTkFont(size=12, weight="bold"),
                          text_color="#7a7a9e").pack(side="left", padx=6, pady=8)
 
-        # User rows (scrollable)
         self.users_list = ctk.CTkScrollableFrame(self.users_card, fg_color="transparent")
         self.users_list.pack(fill="both", expand=True, padx=15, pady=(0, 15))
         self._populate_users()
@@ -118,7 +115,6 @@ class AdminDashboard(ctk.CTkFrame):
             ctk.CTkLabel(row, text=rb, width=80, font=ctk.CTkFont(size=11, weight="bold"),
                          text_color=rc).pack(side="left", padx=6)
 
-            # Action buttons
             btn_frame = ctk.CTkFrame(row, fg_color="transparent")
             btn_frame.pack(side="left", padx=4)
 
@@ -128,7 +124,6 @@ class AdminDashboard(ctk.CTkFrame):
                           command=lambda u=uid, n=uname: self._open_change_password_dialog(u, n)
                           ).pack(side="left", padx=2)
 
-            # Kendi hesabını silemesin
             is_self = (uid == current_uid)
             ctk.CTkButton(btn_frame, text="🗑️", width=32, height=28, corner_radius=6,
                           font=ctk.CTkFont(size=13),
@@ -138,13 +133,10 @@ class AdminDashboard(ctk.CTkFrame):
                           command=lambda u=uid, n=uname: self._confirm_delete_user(u, n)
                           ).pack(side="left", padx=2)
 
-    # ==========================================
-    # ADD USER DIALOG
-    # ==========================================
     def _open_add_user_dialog(self):
         dialog = ctk.CTkToplevel(self)
         dialog.title("Add New User")
-        dialog.geometry("420x420")
+        dialog.geometry("420x510")
         dialog.resizable(False, False)
         dialog.grab_set()
         dialog.configure(fg_color="#1a1a2e")
@@ -158,7 +150,6 @@ class AdminDashboard(ctk.CTkFrame):
         form = ctk.CTkFrame(dialog, fg_color="transparent")
         form.pack(fill="x", padx=30)
 
-        # Full Name
         ctk.CTkLabel(form, text="Full Name", font=ctk.CTkFont(size=13),
                      text_color="#a0a0c0").pack(anchor="w", pady=(0, 4))
         full_name_entry = ctk.CTkEntry(form, height=38, corner_radius=8,
@@ -166,7 +157,6 @@ class AdminDashboard(ctk.CTkFrame):
                                        placeholder_text="e.g. Dr. Ahmet Yılmaz")
         full_name_entry.pack(fill="x", pady=(0, 12))
 
-        # Username
         ctk.CTkLabel(form, text="Username", font=ctk.CTkFont(size=13),
                      text_color="#a0a0c0").pack(anchor="w", pady=(0, 4))
         username_entry = ctk.CTkEntry(form, height=38, corner_radius=8,
@@ -174,7 +164,6 @@ class AdminDashboard(ctk.CTkFrame):
                                       placeholder_text="e.g. ahmet")
         username_entry.pack(fill="x", pady=(0, 12))
 
-        # Password
         ctk.CTkLabel(form, text="Password", font=ctk.CTkFont(size=13),
                      text_color="#a0a0c0").pack(anchor="w", pady=(0, 4))
         password_entry = ctk.CTkEntry(form, height=38, corner_radius=8,
@@ -182,7 +171,6 @@ class AdminDashboard(ctk.CTkFrame):
                                       show="●", placeholder_text="Min. 6 characters")
         password_entry.pack(fill="x", pady=(0, 12))
 
-        # Role
         ctk.CTkLabel(form, text="Role", font=ctk.CTkFont(size=13),
                      text_color="#a0a0c0").pack(anchor="w", pady=(0, 4))
         role_var = ctk.StringVar(value="staff")
@@ -195,7 +183,6 @@ class AdminDashboard(ctk.CTkFrame):
                                           font=ctk.CTkFont(size=13, weight="bold"))
         role_seg.pack(fill="x", pady=(0, 8))
 
-        # Feedback label
         feedback = ctk.CTkLabel(form, text="", font=ctk.CTkFont(size=12),
                                 text_color="#e74c3c")
         feedback.pack(pady=(4, 0))
@@ -232,9 +219,6 @@ class AdminDashboard(ctk.CTkFrame):
                       fg_color="#2b2b4a", hover_color="#3b3b5a",
                       command=dialog.destroy).pack(padx=30, fill="x")
 
-    # ==========================================
-    # CHANGE PASSWORD DIALOG
-    # ==========================================
     def _open_change_password_dialog(self, user_id, username):
         dialog = ctk.CTkToplevel(self)
         dialog.title("Change Password")
@@ -295,9 +279,6 @@ class AdminDashboard(ctk.CTkFrame):
                       fg_color="#2b2b4a", hover_color="#3b3b5a",
                       command=dialog.destroy).pack(padx=30, fill="x")
 
-    # ==========================================
-    # DELETE USER CONFIRM
-    # ==========================================
     def _confirm_delete_user(self, user_id, username):
         dialog = ctk.CTkToplevel(self)
         dialog.title("Delete User")
@@ -344,7 +325,6 @@ class AdminDashboard(ctk.CTkFrame):
 
         settings = get_system_settings()
 
-        # Low Stock Threshold
         ctk.CTkLabel(card, text="Low Stock Threshold", font=ctk.CTkFont(size=13, weight="bold"),
                      text_color="#a0a0c0").pack(padx=20, anchor="w")
         tf = ctk.CTkFrame(card, fg_color="transparent")
@@ -359,7 +339,6 @@ class AdminDashboard(ctk.CTkFrame):
                                       text_color="#e0e0ff", width=70)
         self.thr_label.pack(side="right", padx=(10, 0))
 
-        # Expiry Warning
         ctk.CTkLabel(card, text="Expiry Warning Period", font=ctk.CTkFont(size=13, weight="bold"),
                      text_color="#a0a0c0").pack(padx=20, anchor="w", pady=(10, 0))
         ef = ctk.CTkFrame(card, fg_color="transparent")
@@ -374,19 +353,14 @@ class AdminDashboard(ctk.CTkFrame):
                                       text_color="#e0e0ff", width=70)
         self.exp_label.pack(side="right", padx=(10, 0))
 
-        # Divider
         ctk.CTkFrame(card, height=1, fg_color="#2b2b4a").pack(fill="x", padx=20, pady=10)
 
-        # Save button
         self.save_btn = ctk.CTkButton(card, text="💾  Save Settings", height=38, corner_radius=8,
                                       font=ctk.CTkFont(size=14, weight="bold"),
                                       fg_color="#2b719e", hover_color="#1f538d",
                                       command=self._save)
         self.save_btn.pack(padx=20, pady=(5, 15), fill="x")
 
-    # ==========================================
-    # TRANSACTION LOGS
-    # ==========================================
     def _build_logs(self):
         card = ctk.CTkFrame(self, corner_radius=10, fg_color="#1a1a2e",
                             border_width=1, border_color="#2b2b4a")
@@ -404,7 +378,6 @@ class AdminDashboard(ctk.CTkFrame):
                       fg_color="#2b2b4a", hover_color="#3b3b5a",
                       command=self._refresh_logs).pack(side="right")
 
-        # Table header
         th = ctk.CTkFrame(card, fg_color="#16162a", corner_radius=6)
         th.pack(fill="x", padx=15, pady=(0, 5))
 
@@ -453,8 +426,10 @@ class AdminDashboard(ctk.CTkFrame):
 
             if action == "DISPENSED":
                 a_color, a_text = "#e67e22", "📤 Dispensed"
+            elif action == "RETURNED":
+                a_color, a_text = "#2ecc71", "📥 Returned"
             elif action == "ADDED":
-                a_color, a_text = "#2ecc71", "📥 Added"
+                a_color, a_text = "#3498db", "➕ Added"
             else:
                 a_color, a_text = "#7a7a9e", f"⚡ {action}"
 

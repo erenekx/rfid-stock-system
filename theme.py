@@ -1,6 +1,6 @@
 """
-Apple-style Design System
-Inspired by Apple Human Interface Guidelines & iOS 17 Dark Mode
+Minimal Design System — MediStock
+Centralized color palette, typography, and widget helpers.
 """
 
 import customtkinter as ctk

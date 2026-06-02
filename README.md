@@ -21,3 +21,9 @@ An automated, RFID-integrated pharmaceutical inventory management system designe
    ```bash
    git clone [https://github.com/erenekx/rfid-stock-system.git](https://github.com/erenekx/rfid-stock-system.git)
    cd rfid-stock-system
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
+> This license applies to all versions and commits of this project from its inception.

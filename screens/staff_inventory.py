@@ -1,11 +1,12 @@
 import customtkinter as ctk
+import theme as T
 from database import get_all_inventory, delete_medicine, get_medicine_details, update_medicine
 
 
 class StaffInventory(ctk.CTkFrame):
 
     def __init__(self, parent, on_logout, on_switch_scanner, on_add_medicine, current_user=None):
-        super().__init__(parent, fg_color="transparent")
+        super().__init__(parent, fg_color=T.BG_PRIMARY)
         self.on_logout = on_logout
         self.on_switch_scanner = on_switch_scanner
         self.on_add_medicine = on_add_medicine
@@ -13,79 +14,112 @@ class StaffInventory(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(2, weight=1)
         self._build_navbar()
-        self._build_tabs()
+        self._build_toolbar()
         self._build_table()
 
+    # ─── Navbar ───────────────────────────────────────────────────────────────
     def _build_navbar(self):
-        nav = ctk.CTkFrame(self, height=50, corner_radius=10, fg_color="#1a1a2e",
-                           border_width=1, border_color="#2b2b4a")
-        nav.grid(row=0, column=0, sticky="ew", pady=(0, 15))
+        nav = T.navbar(self)
+        nav.grid(row=0, column=0, sticky="ew", pady=(0, 12))
         nav.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(nav, text="📋  Staff Dashboard",
-                     font=ctk.CTkFont(family="Helvetica", size=20, weight="bold"),
-                     text_color="#e0e0ff").grid(row=0, column=0, padx=20, pady=12, sticky="w")
+        ctk.CTkLabel(
+            nav, text="Inventory",
+            font=T.headline(), text_color=T.TEXT_PRIMARY
+        ).grid(row=0, column=0, padx=20, pady=16, sticky="w")
 
         name = self.current_user[3] if self.current_user else "Staff"
-        ctk.CTkLabel(nav, text=f"👤 {name}", font=ctk.CTkFont(size=13),
-                     text_color="#7a7a9e").grid(row=0, column=1, sticky="e", padx=5)
+        ctk.CTkLabel(
+            nav, text=name,
+            font=T.callout(), text_color=T.TEXT_SECONDARY
+        ).grid(row=0, column=1, sticky="e", padx=12)
 
-        ctk.CTkButton(nav, text="⏻ Logout", width=100, height=34, corner_radius=8,
-                      fg_color="#e74c3c", hover_color="#c0392b",
-                      font=ctk.CTkFont(size=13, weight="bold"),
-                      command=self.on_logout).grid(row=0, column=2, padx=15, pady=10)
+        T.danger_button(
+            nav, text="Sign Out", width=90, height=32,
+            command=self.on_logout
+        ).grid(row=0, column=2, padx=16, pady=12)
 
-    def _build_tabs(self):
-        tab_frame = ctk.CTkFrame(self, fg_color="transparent")
-        tab_frame.grid(row=1, column=0, sticky="ew", pady=(0, 10))
+    # ─── Toolbar (tabs + search + add) ────────────────────────────────────────
+    def _build_toolbar(self):
+        bar = ctk.CTkFrame(self, fg_color="transparent")
+        bar.grid(row=1, column=0, sticky="ew", pady=(0, 10))
+        bar.grid_columnconfigure(1, weight=1)
 
-        self.tab_inventory = ctk.CTkButton(
-            tab_frame, text="📋 Inventory", height=36, corner_radius=8,
-            font=ctk.CTkFont(size=13, weight="bold"),
-            fg_color="#2b719e", hover_color="#1f538d")
-        self.tab_inventory.pack(side="left", padx=(0, 5))
+        # Left: tab segmented control
+        seg = ctk.CTkFrame(
+            bar, fg_color=T.BG_SECONDARY,
+            corner_radius=T.RADIUS_MD,
+            border_width=1, border_color=T.BORDER
+        )
+        seg.grid(row=0, column=0, sticky="w")
 
-        self.tab_scanner = ctk.CTkButton(
-            tab_frame, text="📡 RFID Scanner", height=36, corner_radius=8,
-            font=ctk.CTkFont(size=13, weight="bold"),
-            fg_color="#2b2b4a", hover_color="#3b3b5a",
-            command=self.on_switch_scanner)
-        self.tab_scanner.pack(side="left", padx=5)
+        ctk.CTkButton(
+            seg, text="Inventory", height=34, width=110,
+            corner_radius=T.RADIUS_SM,
+            fg_color=T.BLUE, hover_color=T.BLUE_HOVER,
+            text_color=T.TEXT_PRIMARY, font=T.callout_bold()
+        ).pack(side="left", padx=6, pady=6)
 
-        self.add_btn = ctk.CTkButton(
-            tab_frame, text="+ Add Medicine", height=36, corner_radius=8,
-            font=ctk.CTkFont(size=13, weight="bold"),
-            fg_color="#2ecc71", hover_color="#27ae60",
-            command=self.on_add_medicine)
-        self.add_btn.pack(side="right")
+        T.secondary_button(
+            seg, text="RFID Scanner", height=34, width=120,
+            command=self.on_switch_scanner
+        ).pack(side="left", pady=6)
 
-        self.search_entry = ctk.CTkEntry(
-            tab_frame, placeholder_text="🔍 Search medicines...",
-            width=220, height=36, corner_radius=8,
-            border_color="#2b2b4a", fg_color="#16162a")
-        self.search_entry.pack(side="right", padx=(0, 10))
+        # Right: search + add button
+        right = ctk.CTkFrame(bar, fg_color="transparent")
+        right.grid(row=0, column=1, sticky="e")
+
+        self.search_entry = T.text_input(
+            right, placeholder="Search medicines...",
+            height=36, width=220
+        )
+        self.search_entry.pack(side="left", padx=(0, 10))
         self.search_entry.bind("<KeyRelease>", self._filter_table)
 
+        T.primary_button(
+            right, text="+ Add Medicine",
+            height=36, width=130,
+            fg_color=T.GREEN, hover_color=T.GREEN_HOVER,
+            command=self.on_add_medicine
+        ).pack(side="left")
+
+    # ─── Main Table ───────────────────────────────────────────────────────────
     def _build_table(self):
-        self.table_card = ctk.CTkFrame(self, corner_radius=10, fg_color="#1a1a2e",
-                            border_width=1, border_color="#2b2b4a")
+        self.table_card = T.card(self)
         self.table_card.grid(row=2, column=0, sticky="nsew")
+        self.table_card.grid_rowconfigure(1, weight=1)
+        self.table_card.grid_columnconfigure(0, weight=1)
 
-        th = ctk.CTkFrame(self.table_card, fg_color="#16162a", corner_radius=8)
-        th.pack(fill="x", padx=15, pady=(15, 5))
+        # Header row
+        th = ctk.CTkFrame(self.table_card, fg_color=T.BG_TERTIARY, corner_radius=T.RADIUS_SM)
+        th.grid(row=0, column=0, sticky="ew", padx=16, pady=(16, 6))
 
-        cols = [("#", 35), ("Medicine Name", 140), ("Batch No", 100),
-                ("Stock", 70), ("Expiry", 100), ("Status", 100), ("Actions", 100)]
+        cols = [
+            ("#",            40),
+            ("Medicine",     170),
+            ("Batch",        110),
+            ("Stock",        70),
+            ("Expiry",       110),
+            ("Status",       110),
+            ("Actions",      110),
+        ]
         for text, w in cols:
-            ctk.CTkLabel(th, text=text, width=w,
-                         font=ctk.CTkFont(size=12, weight="bold"),
-                         text_color="#7a7a9e").pack(side="left", padx=6, pady=10)
+            ctk.CTkLabel(
+                th, text=text, width=w,
+                font=T.footnote(), text_color=T.TEXT_SECONDARY
+            ).pack(side="left", padx=8, pady=9)
 
-        self.table_body = ctk.CTkScrollableFrame(self.table_card, fg_color="transparent")
-        self.table_body.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        # Scrollable body
+        self.table_body = ctk.CTkScrollableFrame(
+            self.table_card, fg_color="transparent"
+        )
+        self.table_body.grid(row=1, column=0, sticky="nsew", padx=16, pady=(0, 6))
 
-        self.feedback_label = ctk.CTkLabel(self.table_card, text="", font=ctk.CTkFont(size=12))
-        self.feedback_label.pack(pady=(0, 10))
+        # Feedback
+        self.feedback_label = ctk.CTkLabel(
+            self.table_card, text="", font=T.callout()
+        )
+        self.feedback_label.grid(row=2, column=0, pady=(0, 10))
 
         self._populate_rows()
 
@@ -94,187 +128,199 @@ class StaffInventory(ctk.CTkFrame):
             w.destroy()
 
         inventory = get_all_inventory()
+        shown = 0
         for idx, (product_id, name, batch, qty, expiry, status) in enumerate(inventory, 1):
             if filter_text and filter_text.lower() not in name.lower():
                 continue
+            shown += 1
 
-            bg = "#1e1e38" if idx % 2 == 0 else "#1a1a30"
-            row = ctk.CTkFrame(self.table_body, fg_color=bg, corner_radius=6, height=42)
+            # Alternating row colors
+            bg = T.BG_SECONDARY if shown % 2 == 1 else T.BG_TERTIARY
+            row = ctk.CTkFrame(
+                self.table_body, fg_color=bg,
+                corner_radius=T.RADIUS_SM, height=46
+            )
             row.pack(fill="x", pady=2)
             row.pack_propagate(False)
 
-            ctk.CTkLabel(row, text=str(idx), width=35,
-                         font=ctk.CTkFont(size=12), text_color="#7a7a9e").pack(side="left", padx=6)
-            ctk.CTkLabel(row, text=name, width=140,
-                         font=ctk.CTkFont(size=13, weight="bold"),
-                         text_color="#e0e0ff").pack(side="left", padx=6)
-            ctk.CTkLabel(row, text=batch, width=100,
-                         font=ctk.CTkFont(size=12, family="Courier"),
-                         text_color="#a8c7fa").pack(side="left", padx=6)
+            ctk.CTkLabel(row, text=str(idx), width=40,
+                         font=T.caption(), text_color=T.TEXT_SECONDARY
+                         ).pack(side="left", padx=8)
+
+            ctk.CTkLabel(row, text=name, width=170,
+                         font=T.body_bold(), text_color=T.TEXT_PRIMARY
+                         ).pack(side="left", padx=4)
+
+            ctk.CTkLabel(row, text=batch, width=110,
+                         font=ctk.CTkFont(family="SF Mono", size=11),
+                         text_color=T.TEXT_SECONDARY
+                         ).pack(side="left", padx=4)
+
+            qty_color = T.RED if qty == 0 else T.ORANGE if qty <= 20 else T.TEXT_PRIMARY
             ctk.CTkLabel(row, text=str(qty), width=70,
-                         font=ctk.CTkFont(size=13, weight="bold"),
-                         text_color="#e0e0ff").pack(side="left", padx=6)
-            ctk.CTkLabel(row, text=expiry, width=100,
-                         font=ctk.CTkFont(size=12),
-                         text_color="#a0a0c0").pack(side="left", padx=6)
+                         font=T.body_bold(), text_color=qty_color
+                         ).pack(side="left", padx=4)
 
-            if status == "Expired":
-                s_color, s_text = "#e74c3c", "🔴 Expired"
-            elif status == "Low Stock":
-                s_color, s_text = "#e67e22", "🟠 Low Stock"
-            else:
-                s_color, s_text = "#2ecc71", "🟢 In Stock"
+            ctk.CTkLabel(row, text=expiry, width=110,
+                         font=T.footnote(), text_color=T.TEXT_SECONDARY
+                         ).pack(side="left", padx=4)
 
-            ctk.CTkLabel(row, text=s_text, width=100,
-                         font=ctk.CTkFont(size=11, weight="bold"),
-                         text_color=s_color).pack(side="left", padx=6)
+            # Status badge
+            badge_text, badge_bg, badge_fg = T.status_badge_colors(status)
+            badge = ctk.CTkFrame(row, fg_color=badge_bg, corner_radius=T.RADIUS_SM, width=90, height=26)
+            badge.pack(side="left", padx=10)
+            badge.pack_propagate(False)
+            ctk.CTkLabel(
+                badge, text=badge_text,
+                font=T.caption(), text_color=badge_fg
+            ).place(relx=0.5, rely=0.5, anchor="center")
 
-            actions = ctk.CTkFrame(row, fg_color="transparent")
-            actions.pack(side="left", padx=6)
+            # Action buttons
+            act = ctk.CTkFrame(row, fg_color="transparent")
+            act.pack(side="left", padx=4)
 
-            ctk.CTkButton(actions, text="✏️", width=36, height=28, corner_radius=6,
-                          fg_color="#1a3a5c", hover_color="#2b719e",
-                          font=ctk.CTkFont(size=13),
-                          command=lambda pid=product_id: self._open_edit(pid)
-                          ).pack(side="left", padx=(0, 4))
+            ctk.CTkButton(
+                act, text="Edit", width=48, height=28,
+                corner_radius=T.RADIUS_SM,
+                fg_color=T.BG_QUATERNARY, hover_color=T.BLUE,
+                text_color=T.TEXT_SECONDARY, font=T.caption(),
+                command=lambda pid=product_id: self._open_edit(pid)
+            ).pack(side="left", padx=(0, 4))
 
-            ctk.CTkButton(actions, text="🗑️", width=36, height=28, corner_radius=6,
-                          fg_color="#3a1a1a", hover_color="#e74c3c",
-                          font=ctk.CTkFont(size=13),
-                          command=lambda pid=product_id, n=name: self._confirm_delete(pid, n)
-                          ).pack(side="left")
+            ctk.CTkButton(
+                act, text="Delete", width=56, height=28,
+                corner_radius=T.RADIUS_SM,
+                fg_color=T.BG_QUATERNARY, hover_color=T.RED,
+                text_color=T.TEXT_SECONDARY, font=T.caption(),
+                command=lambda pid=product_id, n=name: self._confirm_delete(pid, n)
+            ).pack(side="left")
 
+        if shown == 0:
+            ctk.CTkLabel(
+                self.table_body,
+                text="No medicines found.",
+                font=T.callout(), text_color=T.TEXT_TERTIARY
+            ).pack(pady=40)
+
+    # ─── Edit Dialog ──────────────────────────────────────────────────────────
     def _open_edit(self, product_id):
         details = get_medicine_details(product_id)
         if not details:
             return
-
         pid, name, batch_code, qty, expiry, batch_id = details
 
-        dialog = ctk.CTkToplevel(self)
-        dialog.title("Edit Medicine")
-        dialog.geometry("450x420")
-        dialog.resizable(False, False)
-        dialog.grab_set()
+        d = self._dialog("Edit Medicine", 440, 420)
 
-        ctk.CTkLabel(dialog, text="✏️  Edit Medicine",
-                     font=ctk.CTkFont(size=18, weight="bold"),
-                     text_color="#e0e0ff").pack(pady=(20, 5))
-        ctk.CTkFrame(dialog, height=1, fg_color="#2b2b4a").pack(fill="x", padx=25, pady=(5, 15))
+        ctk.CTkLabel(d, text="Edit Medicine",
+                     font=T.headline(), text_color=T.TEXT_PRIMARY
+                     ).pack(pady=(28, 4))
+        T.separator(d).pack(fill="x", padx=28, pady=(4, 20))
 
-        form = ctk.CTkFrame(dialog, fg_color="transparent")
-        form.pack(fill="x", padx=30)
+        form = ctk.CTkFrame(d, fg_color="transparent")
+        form.pack(fill="x", padx=28)
 
-        ctk.CTkLabel(form, text="Medicine Name", font=ctk.CTkFont(size=12, weight="bold"),
-                     text_color="#a0a0c0").pack(anchor="w", pady=(0, 3))
-        name_entry = ctk.CTkEntry(form, height=38, corner_radius=8,
-                                  border_color="#2b2b4a", fg_color="#16162a",
-                                  font=ctk.CTkFont(size=13))
-        name_entry.insert(0, name)
-        name_entry.pack(fill="x", pady=(0, 12))
-
-        ctk.CTkLabel(form, text="Batch Number", font=ctk.CTkFont(size=12, weight="bold"),
-                     text_color="#a0a0c0").pack(anchor="w", pady=(0, 3))
-        batch_entry = ctk.CTkEntry(form, height=38, corner_radius=8,
-                                   border_color="#2b2b4a", fg_color="#16162a",
-                                   font=ctk.CTkFont(size=13))
-        batch_entry.insert(0, batch_code)
-        batch_entry.pack(fill="x", pady=(0, 12))
+        name_entry = self._field(form, "Medicine Name", name)
+        batch_entry = self._field(form, "Batch Number", batch_code)
 
         row2 = ctk.CTkFrame(form, fg_color="transparent")
-        row2.pack(fill="x", pady=(0, 12))
-        row2.grid_columnconfigure(0, weight=1)
-        row2.grid_columnconfigure(1, weight=1)
+        row2.pack(fill="x", pady=(0, 8))
+        row2.grid_columnconfigure((0, 1), weight=1)
 
-        ctk.CTkLabel(row2, text="Expiry Date", font=ctk.CTkFont(size=12, weight="bold"),
-                     text_color="#a0a0c0").grid(row=0, column=0, sticky="w", padx=(0, 5))
-        expiry_entry = ctk.CTkEntry(row2, height=38, corner_radius=8,
-                                    border_color="#2b2b4a", fg_color="#16162a",
-                                    font=ctk.CTkFont(size=13))
+        ctk.CTkLabel(row2, text="Expiry Date", font=T.callout_bold(),
+                     text_color=T.TEXT_SECONDARY).grid(row=0, column=0, sticky="w", padx=(0, 6))
+        expiry_entry = T.text_input(row2, height=42)
         expiry_entry.insert(0, expiry)
-        expiry_entry.grid(row=1, column=0, sticky="ew", padx=(0, 5))
+        expiry_entry.grid(row=1, column=0, sticky="ew", padx=(0, 6))
 
-        ctk.CTkLabel(row2, text="Quantity", font=ctk.CTkFont(size=12, weight="bold"),
-                     text_color="#a0a0c0").grid(row=0, column=1, sticky="w", padx=(5, 0))
-        qty_entry = ctk.CTkEntry(row2, height=38, corner_radius=8,
-                                 border_color="#2b2b4a", fg_color="#16162a",
-                                 font=ctk.CTkFont(size=13))
+        ctk.CTkLabel(row2, text="Quantity", font=T.callout_bold(),
+                     text_color=T.TEXT_SECONDARY).grid(row=0, column=1, sticky="w", padx=(6, 0))
+        qty_entry = T.text_input(row2, height=42)
         qty_entry.insert(0, str(qty))
-        qty_entry.grid(row=1, column=1, sticky="ew", padx=(5, 0))
+        qty_entry.grid(row=1, column=1, sticky="ew", padx=(6, 0))
 
-        err_label = ctk.CTkLabel(dialog, text="", font=ctk.CTkFont(size=11), text_color="#e74c3c")
-        err_label.pack(pady=(5, 0))
+        err = ctk.CTkLabel(d, text="", font=T.footnote(), text_color=T.RED)
+        err.pack(pady=(8, 0))
 
-        btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
-        btn_frame.pack(pady=(10, 20))
+        btns = ctk.CTkFrame(d, fg_color="transparent")
+        btns.pack(pady=(8, 24), fill="x", padx=28)
 
-        ctk.CTkButton(btn_frame, text="Cancel", width=130, height=38,
-                      fg_color="#2b2b4a", hover_color="#3b3b5a",
-                      font=ctk.CTkFont(size=13, weight="bold"),
-                      command=dialog.destroy).pack(side="left", padx=8)
+        T.secondary_button(btns, text="Cancel", width=130, height=42,
+                           command=d.destroy).pack(side="left", padx=(0, 8))
 
-        def save_edit():
+        def _save():
             n = name_entry.get().strip()
             b = batch_entry.get().strip()
             e = expiry_entry.get().strip()
             q = qty_entry.get().strip()
-            if not n or not b or not e or not q:
-                err_label.configure(text="⚠ All fields are required")
+            if not all([n, b, e, q]):
+                err.configure(text="All fields are required.")
                 return
             try:
                 q_int = int(q)
             except ValueError:
-                err_label.configure(text="⚠ Quantity must be a number")
+                err.configure(text="Quantity must be a number.")
                 return
             update_medicine(pid, n, b, e, q_int)
-            dialog.destroy()
-            self.feedback_label.configure(text=f"✓ {n} updated successfully", text_color="#2ecc71")
+            d.destroy()
+            self.feedback_label.configure(
+                text=f"  {n} updated.", text_color=T.GREEN
+            )
             self._populate_rows()
             self.after(3000, lambda: self.feedback_label.configure(text=""))
 
-        ctk.CTkButton(btn_frame, text="💾 Save Changes", width=160, height=38,
-                      fg_color="#2b719e", hover_color="#1f538d",
-                      font=ctk.CTkFont(size=13, weight="bold"),
-                      command=save_edit).pack(side="left", padx=8)
+        T.primary_button(btns, text="Save Changes", width=160, height=42,
+                         command=_save).pack(side="left")
 
+    # ─── Delete Confirm ───────────────────────────────────────────────────────
     def _confirm_delete(self, product_id, name):
-        dialog = ctk.CTkToplevel(self)
-        dialog.title("Confirm Delete")
-        dialog.geometry("380x200")
-        dialog.resizable(False, False)
-        dialog.grab_set()
+        d = self._dialog("Delete Medicine", 360, 210)
 
-        ctk.CTkLabel(dialog, text="⚠️ Delete Medicine",
-                     font=ctk.CTkFont(size=18, weight="bold"),
-                     text_color="#e74c3c").pack(pady=(25, 10))
+        ctk.CTkLabel(d, text="Delete Medicine",
+                     font=T.headline(), text_color=T.RED
+                     ).pack(pady=(28, 8))
+        ctk.CTkLabel(
+            d, text=f'Remove "{name}" from inventory?\nThis cannot be undone.',
+            font=T.callout(), text_color=T.TEXT_SECONDARY, justify="center"
+        ).pack(pady=(0, 24))
 
-        ctk.CTkLabel(dialog, text=f'Are you sure you want to delete\n"{name}" from inventory?',
-                     font=ctk.CTkFont(size=13), text_color="#a0a0c0").pack(pady=(0, 20))
+        btns = ctk.CTkFrame(d, fg_color="transparent")
+        btns.pack(fill="x", padx=28)
 
-        btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
-        btn_frame.pack()
-
-        ctk.CTkButton(btn_frame, text="Cancel", width=120, height=36,
-                      fg_color="#2b2b4a", hover_color="#3b3b5a",
-                      font=ctk.CTkFont(size=13, weight="bold"),
-                      command=dialog.destroy).pack(side="left", padx=8)
-
-        ctk.CTkButton(btn_frame, text="🗑️ Delete", width=120, height=36,
-                      fg_color="#e74c3c", hover_color="#c0392b",
-                      font=ctk.CTkFont(size=13, weight="bold"),
-                      command=lambda: self._do_delete(product_id, name, dialog)
-                      ).pack(side="left", padx=8)
+        T.secondary_button(btns, text="Cancel", width=130, height=40,
+                           command=d.destroy).pack(side="left", padx=(0, 8))
+        T.danger_button(btns, text="Delete", width=130, height=40,
+                        command=lambda: self._do_delete(product_id, name, d)
+                        ).pack(side="left")
 
     def _do_delete(self, product_id, name, dialog):
         delete_medicine(product_id)
         dialog.destroy()
-        self.feedback_label.configure(text=f"✓ {name} deleted successfully", text_color="#2ecc71")
+        self.feedback_label.configure(text=f"  {name} deleted.", text_color=T.GREEN)
         self._populate_rows()
         self.after(3000, lambda: self.feedback_label.configure(text=""))
 
+    # ─── Helpers ──────────────────────────────────────────────────────────────
+    def _dialog(self, title, w, h):
+        d = ctk.CTkToplevel(self)
+        d.title(title)
+        d.geometry(f"{w}x{h}")
+        d.resizable(False, False)
+        d.grab_set()
+        d.configure(fg_color=T.BG_SECONDARY)
+        d.lift()
+        d.focus_force()
+        return d
+
+    def _field(self, parent, label_text, initial=""):
+        ctk.CTkLabel(parent, text=label_text, font=T.callout_bold(),
+                     text_color=T.TEXT_SECONDARY).pack(anchor="w", pady=(0, 4))
+        e = T.text_input(parent, height=42)
+        e.insert(0, initial)
+        e.pack(fill="x", pady=(0, 14))
+        return e
+
     def _filter_table(self, event=None):
-        text = self.search_entry.get()
-        self._populate_rows(text)
+        self._populate_rows(self.search_entry.get())
 
     def refresh(self):
         self._populate_rows()

@@ -1,12 +1,10 @@
 import customtkinter as ctk
+import theme as T
 from screens.login_screen import LoginScreen
 from screens.admin_dashboard import AdminDashboard
 from screens.staff_inventory import StaffInventory
 from screens.rfid_scanner import RFIDScannerScreen
 from screens.medicine_form import MedicineForm
-
-ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("blue")
 
 
 class RFIDStockApp(ctk.CTk):
@@ -14,10 +12,10 @@ class RFIDStockApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("RFID Stock Management System")
-        self.geometry("1100x700")
-        self.minsize(900, 600)
-        self.configure(padx=20, pady=20)
+        self.title("MediStock")
+        self.geometry("1140x720")
+        self.minsize(960, 640)
+        self.configure(fg_color=T.BG_PRIMARY, padx=16, pady=16)
 
         self.current_user = None
         self.current_frame = None

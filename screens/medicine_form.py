@@ -1,11 +1,12 @@
 import customtkinter as ctk
+import theme as T
 from database import add_medicine, log_movement
 
 
 class MedicineForm(ctk.CTkFrame):
 
     def __init__(self, parent, on_back, current_user=None):
-        super().__init__(parent, fg_color="transparent")
+        super().__init__(parent, fg_color=T.BG_PRIMARY)
         self.on_back = on_back
         self.current_user = current_user
         self.grid_columnconfigure(0, weight=1)
@@ -13,156 +14,158 @@ class MedicineForm(ctk.CTkFrame):
         self._build_header()
         self._build_form()
 
+    # ─── Header / Navbar ──────────────────────────────────────────────────────
     def _build_header(self):
-        hdr = ctk.CTkFrame(self, height=50, corner_radius=10, fg_color="#1a1a2e",
-                           border_width=1, border_color="#2b2b4a")
-        hdr.grid(row=0, column=0, sticky="ew", pady=(0, 15))
+        hdr = T.navbar(self)
+        hdr.grid(row=0, column=0, sticky="ew", pady=(0, 12))
         hdr.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(hdr, text="💊  Medicine Registration",
-                     font=ctk.CTkFont(family="Helvetica", size=20, weight="bold"),
-                     text_color="#e0e0ff").grid(row=0, column=0, padx=20, pady=12, sticky="w")
+        ctk.CTkLabel(
+            hdr, text="New Medicine",
+            font=T.headline(), text_color=T.TEXT_PRIMARY
+        ).grid(row=0, column=0, padx=20, pady=16, sticky="w")
 
-        ctk.CTkButton(hdr, text="← Back", width=80, height=34, corner_radius=8,
-                      fg_color="#2b2b4a", hover_color="#3b3b5a",
-                      font=ctk.CTkFont(size=13, weight="bold"),
-                      command=self.on_back).grid(row=0, column=2, padx=15, pady=10)
+        T.secondary_button(
+            hdr, text="← Back", width=80, height=32,
+            command=self.on_back
+        ).grid(row=0, column=2, padx=16, pady=12)
 
+    # ─── Form Body ────────────────────────────────────────────────────────────
     def _build_form(self):
-        card = ctk.CTkFrame(self, corner_radius=12, fg_color="#1a1a2e",
-                            border_width=1, border_color="#2b2b4a")
-        card.grid(row=1, column=0, sticky="nsew")
+        outer = T.card(self)
+        outer.grid(row=1, column=0, sticky="nsew")
 
-        ctk.CTkLabel(card, text="Register New Medicine",
-                     font=ctk.CTkFont(size=18, weight="bold"),
-                     text_color="#e0e0ff").pack(pady=(25, 5))
-        ctk.CTkLabel(card, text="Fill in the details below to add a new medicine to the system",
-                     font=ctk.CTkFont(size=12), text_color="#7a7a9e").pack(pady=(0, 20))
+        ctk.CTkLabel(
+            outer, text="Register New Medicine",
+            font=T.headline(), text_color=T.TEXT_PRIMARY
+        ).pack(pady=(28, 4))
 
-        ctk.CTkFrame(card, height=1, fg_color="#2b2b4a").pack(fill="x", padx=30, pady=(0, 20))
+        ctk.CTkLabel(
+            outer, text="Fill in the details below to add a medicine to inventory.",
+            font=T.callout(), text_color=T.TEXT_SECONDARY
+        ).pack(pady=(0, 20))
 
-        form = ctk.CTkFrame(card, fg_color="transparent")
-        form.pack(fill="both", expand=True, padx=40, pady=(0, 10))
-        form.grid_columnconfigure(0, weight=1)
-        form.grid_columnconfigure(1, weight=1)
+        T.separator(outer).pack(fill="x", padx=32, pady=(0, 24))
 
-        ctk.CTkLabel(form, text="Medicine Name *", font=ctk.CTkFont(size=13, weight="bold"),
-                     text_color="#a0a0c0").grid(row=0, column=0, sticky="w", padx=10, pady=(0, 3))
-        self.name_entry = ctk.CTkEntry(form, placeholder_text="e.g. Paracetamol",
-                                       height=42, corner_radius=8,
-                                       border_color="#2b2b4a", fg_color="#16162a",
-                                       font=ctk.CTkFont(size=14))
-        self.name_entry.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 15))
+        form = ctk.CTkFrame(outer, fg_color="transparent")
+        form.pack(fill="both", expand=True, padx=40, pady=(0, 16))
+        form.grid_columnconfigure((0, 1), weight=1)
 
-        ctk.CTkLabel(form, text="Batch Number *", font=ctk.CTkFont(size=13, weight="bold"),
-                     text_color="#a0a0c0").grid(row=0, column=1, sticky="w", padx=10, pady=(0, 3))
-        self.batch_entry = ctk.CTkEntry(form, placeholder_text="e.g. B-2025-001",
-                                        height=42, corner_radius=8,
-                                        border_color="#2b2b4a", fg_color="#16162a",
-                                        font=ctk.CTkFont(size=14))
-        self.batch_entry.grid(row=1, column=1, sticky="ew", padx=10, pady=(0, 15))
+        # Row 1
+        self._label(form, "Medicine Name *", row=0, col=0)
+        self.name_entry = T.text_input(form, placeholder="e.g. Paracetamol", height=44)
+        self.name_entry.grid(row=1, column=0, sticky="ew", padx=(0, 12), pady=(0, 16))
 
-        ctk.CTkLabel(form, text="Expiry Date *", font=ctk.CTkFont(size=13, weight="bold"),
-                     text_color="#a0a0c0").grid(row=2, column=0, sticky="w", padx=10, pady=(0, 3))
-        self.expiry_entry = ctk.CTkEntry(form, placeholder_text="YYYY-MM  (e.g. 2027-06)",
-                                         height=42, corner_radius=8,
-                                         border_color="#2b2b4a", fg_color="#16162a",
-                                         font=ctk.CTkFont(size=14))
-        self.expiry_entry.grid(row=3, column=0, sticky="ew", padx=10, pady=(0, 15))
+        self._label(form, "Batch Number *", row=0, col=1)
+        self.batch_entry = T.text_input(form, placeholder="e.g. B-2025-001", height=44)
+        self.batch_entry.grid(row=1, column=1, sticky="ew", padx=(12, 0), pady=(0, 16))
 
-        ctk.CTkLabel(form, text="Initial Quantity *", font=ctk.CTkFont(size=13, weight="bold"),
-                     text_color="#a0a0c0").grid(row=2, column=1, sticky="w", padx=10, pady=(0, 3))
-        self.qty_entry = ctk.CTkEntry(form, placeholder_text="e.g. 100",
-                                      height=42, corner_radius=8,
-                                      border_color="#2b2b4a", fg_color="#16162a",
-                                      font=ctk.CTkFont(size=14))
-        self.qty_entry.grid(row=3, column=1, sticky="ew", padx=10, pady=(0, 15))
+        # Row 2
+        self._label(form, "Expiry Date *", row=2, col=0)
+        self.expiry_entry = T.text_input(form, placeholder="YYYY-MM  (e.g. 2027-06)", height=44)
+        self.expiry_entry.grid(row=3, column=0, sticky="ew", padx=(0, 12), pady=(0, 16))
 
-        ctk.CTkLabel(form, text="RFID Tag Assignment", font=ctk.CTkFont(size=13, weight="bold"),
-                     text_color="#a0a0c0").grid(row=4, column=0, sticky="w", padx=10, pady=(5, 3))
+        self._label(form, "Initial Quantity *", row=2, col=1)
+        self.qty_entry = T.text_input(form, placeholder="e.g. 100", height=44)
+        self.qty_entry.grid(row=3, column=1, sticky="ew", padx=(12, 0), pady=(0, 16))
 
-        rfid_frame = ctk.CTkFrame(form, fg_color="transparent")
-        rfid_frame.grid(row=5, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 15))
+        # RFID Tag row (full-width)
+        self._label(form, "RFID Tag Assignment", row=4, col=0)
+        rfid_row = ctk.CTkFrame(form, fg_color="transparent")
+        rfid_row.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(0, 8))
 
-        self.rfid_entry = ctk.CTkEntry(rfid_frame, placeholder_text="Scan or enter RFID tag...",
-                                       height=42, corner_radius=8,
-                                       border_color="#2b2b4a", fg_color="#16162a",
-                                       font=ctk.CTkFont(size=14))
+        self.rfid_entry = T.text_input(rfid_row, placeholder="Scan or enter RFID tag...", height=44)
         self.rfid_entry.pack(side="left", fill="x", expand=True)
 
-        self.scan_btn = ctk.CTkButton(rfid_frame, text="📡 Scan Tag", width=120, height=42,
-                                      corner_radius=8,
-                                      fg_color="#8e44ad", hover_color="#7d3c98",
-                                      font=ctk.CTkFont(size=13, weight="bold"),
-                                      command=self._simulate_scan)
+        self.scan_btn = ctk.CTkButton(
+            rfid_row, text="Scan Tag", width=110, height=44,
+            corner_radius=T.RADIUS_MD,
+            fg_color=T.PURPLE, hover_color=T.PURPLE_HOVER,
+            text_color=T.TEXT_PRIMARY, font=T.callout_bold(),
+            command=self._simulate_scan
+        )
         self.scan_btn.pack(side="right", padx=(10, 0))
 
-        self.rfid_status = ctk.CTkLabel(form, text="", font=ctk.CTkFont(size=11),
-                                        text_color="#7a7a9e")
-        self.rfid_status.grid(row=6, column=0, sticky="w", padx=10)
+        self.rfid_status = ctk.CTkLabel(
+            form, text="", font=T.footnote(), text_color=T.TEXT_SECONDARY
+        )
+        self.rfid_status.grid(row=6, column=0, sticky="w")
 
-        div = ctk.CTkFrame(card, height=1, fg_color="#2b2b4a")
-        div.pack(fill="x", padx=40, pady=(10, 15))
+        # Separator + buttons
+        T.separator(outer).pack(fill="x", padx=40, pady=(8, 16))
 
-        self.feedback = ctk.CTkLabel(card, text="", font=ctk.CTkFont(size=12, weight="bold"))
-        self.feedback.pack(pady=(0, 5))
+        self.feedback = ctk.CTkLabel(
+            outer, text="", font=T.callout_bold()
+        )
+        self.feedback.pack(pady=(0, 8))
 
-        btn_frame = ctk.CTkFrame(card, fg_color="transparent")
-        btn_frame.pack(pady=(0, 30))
+        btns = ctk.CTkFrame(outer, fg_color="transparent")
+        btns.pack(pady=(0, 32))
 
-        ctk.CTkButton(btn_frame, text="Cancel", width=140, height=42, corner_radius=8,
-                      fg_color="#2b2b4a", hover_color="#3b3b5a",
-                      font=ctk.CTkFont(size=14, weight="bold"),
-                      command=self._cancel).pack(side="left", padx=8)
+        T.secondary_button(
+            btns, text="Cancel", width=140, height=44,
+            command=self._cancel
+        ).pack(side="left", padx=(0, 12))
 
-        self.save_btn = ctk.CTkButton(btn_frame, text="💾  Save Medicine", width=200, height=42,
-                                      corner_radius=8,
-                                      fg_color="#2b719e", hover_color="#1f538d",
-                                      font=ctk.CTkFont(size=14, weight="bold"),
-                                      command=self._save)
-        self.save_btn.pack(side="left", padx=8)
+        self.save_btn = T.primary_button(
+            btns, text="Save Medicine", width=190, height=44,
+            command=self._save
+        )
+        self.save_btn.pack(side="left")
 
+    def _label(self, parent, text, row, col):
+        ctk.CTkLabel(
+            parent, text=text, font=T.callout_bold(),
+            text_color=T.TEXT_SECONDARY
+        ).grid(row=row, column=col, sticky="w",
+               padx=(0, 12) if col == 0 else (12, 0),
+               pady=(0, 4))
+
+    # ─── Actions ──────────────────────────────────────────────────────────────
     def _simulate_scan(self):
         import random
         tag = f"RFID-{random.randint(1000, 9999)}"
         self.rfid_entry.delete(0, "end")
         self.rfid_entry.insert(0, tag)
-        self.rfid_status.configure(text=f"✓ Tag detected: {tag}", text_color="#2ecc71")
-        self.scan_btn.configure(text="✓ Scanned", fg_color="#2ecc71")
-        self.after(2000, lambda: self.scan_btn.configure(text="📡 Scan Tag", fg_color="#8e44ad"))
+        self.rfid_status.configure(text=f"Tag detected: {tag}", text_color=T.GREEN)
+        self.scan_btn.configure(text="Scanned", fg_color=T.GREEN, hover_color=T.GREEN_HOVER)
+        self.after(2000, lambda: self.scan_btn.configure(
+            text="Scan Tag", fg_color=T.PURPLE, hover_color=T.PURPLE_HOVER
+        ))
 
     def _save(self):
-        name = self.name_entry.get().strip()
-        batch = self.batch_entry.get().strip()
+        name   = self.name_entry.get().strip()
+        batch  = self.batch_entry.get().strip()
         expiry = self.expiry_entry.get().strip()
-        qty = self.qty_entry.get().strip()
-        rfid = self.rfid_entry.get().strip()
+        qty    = self.qty_entry.get().strip()
+        rfid   = self.rfid_entry.get().strip()
 
-        if not name or not batch or not expiry or not qty:
-            self.feedback.configure(text="⚠ Please fill in all required fields (*)", text_color="#e74c3c")
-            for entry, val in [(self.name_entry, name), (self.batch_entry, batch),
-                               (self.expiry_entry, expiry), (self.qty_entry, qty)]:
-                if not val:
-                    entry.configure(border_color="#e74c3c")
-                else:
-                    entry.configure(border_color="#2b2b4a")
+        required = [
+            (self.name_entry,   name),
+            (self.batch_entry,  batch),
+            (self.expiry_entry, expiry),
+            (self.qty_entry,    qty),
+        ]
+        missing = any(not v for _, v in required)
+        if missing:
+            self.feedback.configure(text="Please fill in all required fields.", text_color=T.RED)
+            for entry, val in required:
+                entry.configure(border_color=T.RED if not val else T.BORDER)
             return
 
         try:
             qty_int = int(qty)
         except ValueError:
-            self.feedback.configure(text="⚠ Quantity must be a number", text_color="#e74c3c")
-            self.qty_entry.configure(border_color="#e74c3c")
+            self.feedback.configure(text="Quantity must be a number.", text_color=T.RED)
+            self.qty_entry.configure(border_color=T.RED)
             return
 
         add_medicine(name, batch, expiry, qty_int, rfid)
-
         log_movement(rfid_tag=rfid or "-", product_name=name,
                      action="ADDED", user=self.current_user)
 
-        self.save_btn.configure(text="✓ Saved!", fg_color="#2ecc71")
-        self.feedback.configure(text=f"✓ {name} registered successfully!", text_color="#2ecc71")
-
+        self.save_btn.configure(text="Saved", fg_color=T.GREEN, hover_color=T.GREEN_HOVER)
+        self.feedback.configure(text=f"{name} registered successfully.", text_color=T.GREEN)
         self.after(1500, self._clear_form)
 
     def _cancel(self):
@@ -170,10 +173,10 @@ class MedicineForm(ctk.CTkFrame):
         self.on_back()
 
     def _clear_form(self):
-        for entry in [self.name_entry, self.batch_entry, self.expiry_entry,
-                      self.qty_entry, self.rfid_entry]:
+        for entry in [self.name_entry, self.batch_entry,
+                      self.expiry_entry, self.qty_entry, self.rfid_entry]:
             entry.delete(0, "end")
-            entry.configure(border_color="#2b2b4a")
+            entry.configure(border_color=T.BORDER)
         self.feedback.configure(text="")
         self.rfid_status.configure(text="")
-        self.save_btn.configure(text="💾  Save Medicine", fg_color="#2b719e")
+        self.save_btn.configure(text="Save Medicine", fg_color=T.BLUE, hover_color=T.BLUE_HOVER)

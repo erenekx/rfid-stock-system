@@ -1,159 +1,162 @@
 import customtkinter as ctk
+import theme as T
 from database import authenticate_user
 
 
 class LoginScreen(ctk.CTkFrame):
 
     def __init__(self, parent, on_login_success):
-        super().__init__(parent, fg_color="transparent")
+        super().__init__(parent, fg_color=T.BG_GRAD_TOP)
         self.on_login_success = on_login_success
+        self._password_visible = False
+        self._anim_step = 0
 
+        # Center layout
         self.grid_rowconfigure(0, weight=1)
         self.grid_rowconfigure(2, weight=1)
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(2, weight=1)
 
-        self.login_card = ctk.CTkFrame(self, corner_radius=16, fg_color="#1a1a2e",
-                                       border_width=1, border_color="#2b2b4a")
-        self.login_card.grid(row=1, column=1, padx=40, pady=40)
+        self._build_card()
+        self._start_gradient_anim()
 
-        self.logo_frame = ctk.CTkFrame(self.login_card, fg_color="transparent")
-        self.logo_frame.pack(pady=(40, 5), padx=60)
-
-        self.logo_icon = ctk.CTkLabel(
-            self.logo_frame,
-            text="🏥",
-            font=ctk.CTkFont(size=48)
+    def _build_card(self):
+        self.login_card = ctk.CTkFrame(
+            self,
+            corner_radius=T.RADIUS_LG,
+            fg_color=T.BG_SECONDARY,
+            border_width=1,
+            border_color=T.BORDER,
+            width=400
         )
-        self.logo_icon.pack()
+        self.login_card.grid(row=1, column=1, padx=60, pady=60)
+        self.login_card.grid_propagate(False)
+        self.login_card.configure(width=400, height=580)
 
-        self.app_title = ctk.CTkLabel(
+        # ── Logo ─────────────────────────────────────────────
+        logo_frame = ctk.CTkFrame(self.login_card, fg_color="transparent")
+        logo_frame.pack(pady=(48, 0))
+
+        # Circular logo badge
+        logo_badge = ctk.CTkFrame(
+            logo_frame,
+            width=72, height=72,
+            corner_radius=T.RADIUS_LG,
+            fg_color=T.BLUE,
+        )
+        logo_badge.pack()
+        logo_badge.pack_propagate(False)
+
+        ctk.CTkLabel(
+            logo_badge,
+            text="+",
+            font=T.font(36, "bold"),
+            text_color=T.TEXT_PRIMARY
+        ).place(relx=0.5, rely=0.5, anchor="center")
+
+        # ── App Title ─────────────────────────────────────────
+        ctk.CTkLabel(
             self.login_card,
-            text="RFID Stock Management",
-            font=ctk.CTkFont(family="Helvetica", size=22, weight="bold"),
-            text_color="#e0e0ff"
-        )
-        self.app_title.pack(pady=(5, 0))
+            text="MediStock",
+            font=T.title_large(),
+            text_color=T.TEXT_PRIMARY
+        ).pack(pady=(16, 2))
 
-        self.app_subtitle = ctk.CTkLabel(
+        ctk.CTkLabel(
             self.login_card,
-            text="Healthcare Inventory Control System",
-            font=ctk.CTkFont(family="Helvetica", size=12),
-            text_color="#7a7a9e"
+            text="RFID Inventory Control",
+            font=T.callout(),
+            text_color=T.TEXT_SECONDARY
+        ).pack(pady=(0, 32))
+
+        T.separator(self.login_card).pack(fill="x", padx=32, pady=(0, 28))
+
+        # ── Fields ────────────────────────────────────────────
+        field_frame = ctk.CTkFrame(self.login_card, fg_color="transparent")
+        field_frame.pack(fill="x", padx=32)
+
+        ctk.CTkLabel(
+            field_frame, text="Username",
+            font=T.callout_bold(), text_color=T.TEXT_SECONDARY
+        ).pack(anchor="w", pady=(0, 6))
+
+        self.entry_username = T.text_input(
+            field_frame,
+            placeholder="Enter your username"
         )
-        self.app_subtitle.pack(pady=(2, 25))
+        self.entry_username.pack(fill="x", pady=(0, 20))
 
-        self.divider = ctk.CTkFrame(self.login_card, height=1, fg_color="#2b2b4a")
-        self.divider.pack(fill="x", padx=30, pady=(0, 25))
+        ctk.CTkLabel(
+            field_frame, text="Password",
+            font=T.callout_bold(), text_color=T.TEXT_SECONDARY
+        ).pack(anchor="w", pady=(0, 6))
 
-        self.user_label = ctk.CTkLabel(
-            self.login_card,
-            text="👤  Username",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            text_color="#a0a0c0",
-            anchor="w"
-        )
-        self.user_label.pack(padx=40, anchor="w")
+        pw_row = ctk.CTkFrame(field_frame, fg_color="transparent")
+        pw_row.pack(fill="x", pady=(0, 6))
 
-        self.entry_username = ctk.CTkEntry(
-            self.login_card,
-            placeholder_text="Enter your username",
-            width=300,
-            height=42,
-            font=ctk.CTkFont(size=14),
-            corner_radius=8,
-            border_color="#2b2b4a",
-            fg_color="#16162a"
-        )
-        self.entry_username.pack(padx=40, pady=(5, 15))
-
-        self.pass_label = ctk.CTkLabel(
-            self.login_card,
-            text="🔒  Password",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            text_color="#a0a0c0",
-            anchor="w"
-        )
-        self.pass_label.pack(padx=40, anchor="w")
-
-        self.password_frame = ctk.CTkFrame(self.login_card, fg_color="transparent")
-        self.password_frame.pack(padx=40, pady=(5, 5), fill="x")
-
-        self.entry_password = ctk.CTkEntry(
-            self.password_frame,
-            placeholder_text="Enter your password",
-            show="•",
-            height=42,
-            font=ctk.CTkFont(size=14),
-            corner_radius=8,
-            border_color="#2b2b4a",
-            fg_color="#16162a"
+        self.entry_password = T.text_input(
+            pw_row, placeholder="Enter your password",
+            show="•"
         )
         self.entry_password.pack(side="left", fill="x", expand=True)
 
         self.show_pass_btn = ctk.CTkButton(
-            self.password_frame,
-            text="👁",
-            width=42,
-            height=42,
-            corner_radius=8,
-            fg_color="#2b2b4a",
-            hover_color="#3b3b5a",
+            pw_row,
+            text="Show",
+            width=56, height=44,
+            corner_radius=T.RADIUS_MD,
+            fg_color=T.BG_QUATERNARY,
+            hover_color=T.BG_HOVER,
+            text_color=T.TEXT_SECONDARY,
+            font=T.callout(),
             command=self._toggle_password
         )
         self.show_pass_btn.pack(side="right", padx=(8, 0))
 
-        self._password_visible = False
-
+        # ── Error label ───────────────────────────────────────
         self.error_label = ctk.CTkLabel(
-            self.login_card,
-            text="",
-            font=ctk.CTkFont(size=12),
-            text_color="#e74c3c",
-            height=20
+            self.login_card, text="",
+            font=T.footnote(), text_color=T.RED, height=18
         )
-        self.error_label.pack(pady=(5, 0))
+        self.error_label.pack(pady=(10, 0))
 
-        self.login_button = ctk.CTkButton(
+        # ── Sign In Button ────────────────────────────────────
+        self.login_button = T.primary_button(
             self.login_card,
             text="Sign In",
-            width=300,
-            height=44,
-            font=ctk.CTkFont(size=15, weight="bold"),
-            corner_radius=8,
-            fg_color="#2b719e",
-            hover_color="#1f538d",
+            height=48,
             command=self._handle_login
         )
-        self.login_button.pack(padx=40, pady=(10, 15))
+        self.login_button.pack(fill="x", padx=32, pady=(8, 0))
 
-        self.role_info = ctk.CTkLabel(
+        # ── Footer ────────────────────────────────────────────
+        ctk.CTkLabel(
             self.login_card,
-            text="Demo: admin/admin123 or staff/staff123",
-            font=ctk.CTkFont(size=11),
-            text_color="#555577"
-        )
-        self.role_info.pack(pady=(0, 10))
+            text="admin / admin123  ·  staff / staff123",
+            font=T.caption(),
+            text_color=T.TEXT_TERTIARY
+        ).pack(pady=(16, 32))
 
-        self.footer = ctk.CTkLabel(
-            self.login_card,
-            text="© 2025 RFID Stock Management System  •  v2.0",
-            font=ctk.CTkFont(size=10),
-            text_color="#44445e"
-        )
-        self.footer.pack(pady=(5, 25))
-
-        self.entry_password.bind("<Return>", lambda e: self._handle_login())
+        # Key bindings
         self.entry_username.bind("<Return>", lambda e: self.entry_password.focus())
+        self.entry_password.bind("<Return>", lambda e: self._handle_login())
+        self.entry_username.focus()
+
+    def _start_gradient_anim(self):
+        """Subtle animated background by cycling the bg color very slightly."""
+        shades = ["#080810", "#0a0a14", "#080810", "#060608"]
+        self.configure(fg_color=shades[self._anim_step % len(shades)])
+        self._anim_step += 1
+        self.after(2000, self._start_gradient_anim)
 
     def _toggle_password(self):
         if self._password_visible:
             self.entry_password.configure(show="•")
-            self.show_pass_btn.configure(text="👁")
+            self.show_pass_btn.configure(text="Show")
             self._password_visible = False
         else:
             self.entry_password.configure(show="")
-            self.show_pass_btn.configure(text="🔒")
+            self.show_pass_btn.configure(text="Hide")
             self._password_visible = True
 
     def _handle_login(self):
@@ -161,24 +164,33 @@ class LoginScreen(ctk.CTkFrame):
         password = self.entry_password.get().strip()
 
         if not username or not password:
-            self.error_label.configure(text="⚠ Please fill in all fields")
+            self.error_label.configure(text="Please fill in all fields.")
             return
 
-        self.login_button.configure(text="Authenticating...", state="disabled")
+        self.login_button.configure(
+            text="Signing in...",
+            state="disabled",
+            fg_color=T.BG_QUATERNARY,
+            text_color=T.TEXT_SECONDARY
+        )
         self.error_label.configure(text="")
-
-        self.after(500, lambda: self._do_auth(username, password))
+        self.after(400, lambda: self._do_auth(username, password))
 
     def _do_auth(self, username, password):
         user = authenticate_user(username, password)
-
         if user:
-            user_id, uname, role, full_name = user
-            self.login_button.configure(text="✓ Success!", fg_color="#2ecc71")
-            self.after(600, lambda: self.on_login_success(user))
+            self.login_button.configure(
+                text="✓  Welcome",
+                fg_color=T.GREEN,
+                text_color=T.TEXT_PRIMARY
+            )
+            self.after(500, lambda: self.on_login_success(user))
         else:
-            self.error_label.configure(text="✖ Invalid username or password")
-            self.login_button.configure(text="Sign In", state="normal")
+            self.error_label.configure(text="Incorrect username or password.")
+            self.login_button.configure(
+                text="Sign In", state="normal",
+                fg_color=T.BLUE, text_color=T.TEXT_PRIMARY
+            )
             self.entry_password.delete(0, "end")
             self.entry_password.focus()
 
@@ -186,5 +198,8 @@ class LoginScreen(ctk.CTkFrame):
         self.entry_username.delete(0, "end")
         self.entry_password.delete(0, "end")
         self.error_label.configure(text="")
-        self.login_button.configure(text="Sign In", state="normal", fg_color="#2b719e")
+        self.login_button.configure(
+            text="Sign In", state="normal",
+            fg_color=T.BLUE, text_color=T.TEXT_PRIMARY
+        )
         self.entry_username.focus()
